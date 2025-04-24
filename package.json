@@ -1,0 +1,63 @@
+{
+  "name": "hal-questionnaire",
+  "productName": "HAL问卷系统",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "create-ico": "node scripts/create-ico.js",
+    "prepare-build": "npm run create-ico && next build",
+    "electron-dev": "electron .",
+    "electron-build": "npm run prepare-build && electron-builder",
+    "dist": "electron-builder"
+  },
+  "main": "main.js",
+  "build": {
+    "appId": "com.junzheluo.hal-questionnaire",
+    "productName": "HAL问卷系统",
+    "files": [
+      "out/**/*",
+      "node_modules/**/*",
+      "public/**/*",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/app-icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "HAL问卷系统"
+    }
+  },
+  "dependencies": {
+    "chart.js": "^4.4.8",
+    "electron-serve": "^1.1.0",
+    "idb": "^8.0.2",
+    "next": "15.2.3",
+    "react": "^19.0.0",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^19.0.0",
+    "xlsx": "^0.18.5",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "electron": "^27.1.0",
+    "electron-builder": "^24.6.4",
+    "sharp": "^0.32.6",
+    "tailwindcss": "^4",
+    "to-ico": "^1.1.5",
+    "typescript": "^5"
+  }
+}
