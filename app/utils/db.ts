@@ -9,11 +9,18 @@
  */
 
 import { openDB } from 'idb';
-import { PatientRecord, PatientInfo, HalAnswers, QuestionId, AnswerValue } from '../types';
+import { PatientRecord, PatientInfo, HalAnswers, QuestionId, AnswerValue, HaemqolAnswers, HaemqolQuestionId, HaemqolAnswerValue } from '../types';
 
 // 数据库名称和版本
 const DB_NAME = 'hal-questionnaire';
 const DB_VERSION = 1;
+
+// 存储键名
+const STORAGE_KEYS = {
+  PATIENT_INFO: 'hal-patient-info',
+  ANSWERS: 'hal-answers',
+  HAEMQOL_ANSWERS: 'hal-haemqol-answers'
+};
 
 // 初始化数据库
 export async function initDB() {
@@ -39,40 +46,201 @@ export async function initDB() {
   });
 }
 
-// 存储患者信息
-export async function savePatientInfo(data: PatientInfo) {
-  const db = await initDB();
-  await db.put('patientInfo', data, 'current');
-  return data;
+/**
+ * 检查是否在浏览器环境
+ * @returns 是否在浏览器环境
+ */
+function isBrowser(): boolean {
+  return typeof window !== 'undefined';
 }
 
-// 加载患者信息
+/**
+ * 保存患者信息
+ * @param info 患者信息
+ */
+export async function savePatientInfo(info: PatientInfo): Promise<void> {
+  if (!isBrowser()) return;
+  
+  try {
+    // 使用非阻塞模式保存到 sessionStorage
+    setTimeout(() => {
+      try {
+        sessionStorage.setItem(
+          STORAGE_KEYS.PATIENT_INFO, 
+          JSON.stringify(info)
+        );
+        console.log('患者信息已保存到 sessionStorage');
+      } catch (storageError) {
+        console.error('保存到 sessionStorage 出错:', storageError);
+        // 尝试备份到 localStorage
+        try {
+          localStorage.setItem(
+            STORAGE_KEYS.PATIENT_INFO,
+            JSON.stringify(info)
+          );
+          console.log('患者信息已备份保存到 localStorage');
+        } catch (backupError) {
+          console.error('备份保存到 localStorage 也失败:', backupError);
+        }
+      }
+    }, 0);
+  } catch (error) {
+    console.error('保存患者信息处理出错:', error);
+    throw error;
+  }
+}
+
+/**
+ * 加载患者信息
+ * @returns 患者信息或undefined
+ */
 export async function loadPatientInfo(): Promise<PatientInfo | undefined> {
-  const db = await initDB();
-  return db.get('patientInfo', 'current');
+  if (!isBrowser()) return undefined;
+  try {
+    const infoString = sessionStorage.getItem(STORAGE_KEYS.PATIENT_INFO);
+    return infoString ? JSON.parse(infoString) : undefined;
+  } catch (error) {
+    console.error('加载患者信息出错:', error);
+    return undefined;
+  }
 }
 
-// 存储答案
-export async function saveAnswer(questionId: QuestionId, value: AnswerValue) {
-  const db = await initDB();
-  const answers = await loadAnswers() || {};
-  answers[questionId] = value;
-  await db.put('halAnswers', answers, 'current');
-  return answers;
+/**
+ * 保存单个问题答案
+ * @param questionId 问题ID
+ * @param value 答案值
+ */
+export async function saveAnswer(questionId: QuestionId, value: AnswerValue): Promise<void> {
+  if (!isBrowser()) return;
+  try {
+    // 读取现有答案
+    const answersString = sessionStorage.getItem(STORAGE_KEYS.ANSWERS) || '{}';
+    const answers = JSON.parse(answersString) as HalAnswers;
+    
+    // 更新答案
+    const updatedAnswers = {
+      ...answers,
+      [questionId]: value
+    };
+    
+    // 保存更新后的答案
+    sessionStorage.setItem(
+      STORAGE_KEYS.ANSWERS, 
+      JSON.stringify(updatedAnswers)
+    );
+  } catch (error) {
+    console.error('保存答案出错:', error);
+    throw error;
+  }
 }
 
-// 批量存储答案
-export async function saveAnswers(answers: HalAnswers) {
-  const db = await initDB();
-  await db.put('halAnswers', answers, 'current');
-  return answers;
+/**
+ * 保存所有问题答案
+ * @param answers 所有答案
+ */
+export async function saveAnswers(answers: HalAnswers): Promise<void> {
+  if (!isBrowser()) return;
+  try {
+    sessionStorage.setItem(
+      STORAGE_KEYS.ANSWERS, 
+      JSON.stringify(answers)
+    );
+  } catch (error) {
+    console.error('保存答案出错:', error);
+    throw error;
+  }
 }
 
-// 加载所有答案
-export async function loadAnswers(): Promise<HalAnswers> {
-  const db = await initDB();
-  const answers = await db.get('halAnswers', 'current');
-  return answers || {};
+/**
+ * 加载所有问题答案
+ * @returns 所有答案或空对象
+ */
+export async function loadAnswers(): Promise<HalAnswers | undefined> {
+  if (!isBrowser()) return undefined;
+  try {
+    const answersString = sessionStorage.getItem(STORAGE_KEYS.ANSWERS);
+    return answersString ? JSON.parse(answersString) : {};
+  } catch (error) {
+    console.error('加载答案出错:', error);
+    return {};
+  }
+}
+
+/**
+ * 保存单个HAEMO-QoL-A问题答案
+ * @param questionId 问题ID
+ * @param value 答案值
+ */
+export async function saveHaemqolAnswer(questionId: HaemqolQuestionId, value: HaemqolAnswerValue): Promise<void> {
+  if (!isBrowser()) return;
+  try {
+    // 读取现有答案
+    const answersString = sessionStorage.getItem(STORAGE_KEYS.HAEMQOL_ANSWERS) || '{}';
+    const answers = JSON.parse(answersString) as HaemqolAnswers;
+    
+    // 更新答案
+    const updatedAnswers = {
+      ...answers,
+      [questionId]: value
+    };
+    
+    // 保存更新后的答案
+    sessionStorage.setItem(
+      STORAGE_KEYS.HAEMQOL_ANSWERS, 
+      JSON.stringify(updatedAnswers)
+    );
+  } catch (error) {
+    console.error('保存HAEMO-QoL-A答案出错:', error);
+    throw error;
+  }
+}
+
+/**
+ * 保存所有HAEMO-QoL-A问题答案
+ * @param haemqolAnswers 所有答案
+ */
+export async function saveHaemqolAnswers(haemqolAnswers: HaemqolAnswers): Promise<void> {
+  if (!isBrowser()) return;
+  try {
+    sessionStorage.setItem(
+      STORAGE_KEYS.HAEMQOL_ANSWERS, 
+      JSON.stringify(haemqolAnswers)
+    );
+  } catch (error) {
+    console.error('保存HAEMO-QoL-A答案出错:', error);
+    throw error;
+  }
+}
+
+/**
+ * 加载所有HAEMO-QoL-A问题答案
+ * @returns 所有答案或空对象
+ */
+export async function loadHaemqolAnswers(): Promise<HaemqolAnswers | undefined> {
+  if (!isBrowser()) return undefined;
+  try {
+    const answersString = sessionStorage.getItem(STORAGE_KEYS.HAEMQOL_ANSWERS);
+    return answersString ? JSON.parse(answersString) : {};
+  } catch (error) {
+    console.error('加载HAEMO-QoL-A答案出错:', error);
+    return {};
+  }
+}
+
+/**
+ * 清除所有会话数据
+ */
+export async function clearSessionData(): Promise<void> {
+  if (!isBrowser()) return;
+  try {
+    // 只清除问卷相关数据
+    sessionStorage.removeItem(STORAGE_KEYS.PATIENT_INFO);
+    sessionStorage.removeItem(STORAGE_KEYS.ANSWERS);
+    sessionStorage.removeItem(STORAGE_KEYS.HAEMQOL_ANSWERS);
+  } catch (error) {
+    console.error('清除会话数据出错:', error);
+    throw error;
+  }
 }
 
 // 存储患者记录（完整评估）
@@ -88,13 +256,6 @@ export async function storePatientRecord(record: PatientRecord) {
 export async function loadPatientRecords(): Promise<PatientRecord[]> {
   const db = await initDB();
   return db.getAll('patientRecords');
-}
-
-// 清除当前会话数据（开始新患者评估时）
-export async function clearSessionData() {
-  const db = await initDB();
-  await db.delete('patientInfo', 'current');
-  await db.delete('halAnswers', 'current');
 }
 
 // 本地存储回退方案（当IndexedDB不可用时）

@@ -111,14 +111,18 @@ export default function QuestionnairePage() {
       return;
     }
     
-    // 所有问题已回答，前往确认页
+    // 设置当前步骤为确认页面
     setCurrentStep('confirm');
-    router.push('/confirm');
+    
+    // 使用非阻塞导航跳转到确认页面
+    setTimeout(() => {
+      router.push('/confirm');
+    }, 0);
   };
 
   // 返回上一页
   const handleBack = () => {
-    router.push('/');
+    router.push('/haemqol');
   };
   
   // 切换到下一部分
@@ -205,7 +209,7 @@ export default function QuestionnairePage() {
       <ProgressIndicator 
         currentStep={2}
         totalSteps={4}
-        labels={['患者信息', '问卷填写', '确认信息', '查看结果']}
+        labels={['患者信息', '生存质量问卷', 'HAL问卷', '结果']}
       />
 
       {/* 导航按钮 */}
@@ -217,7 +221,7 @@ export default function QuestionnairePage() {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
           </svg>
-          返回基本信息
+          返回生存质量问卷
         </button>
         
         <button 
@@ -363,7 +367,7 @@ export default function QuestionnairePage() {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
                     </svg>
-                    {sectionIndex === 0 ? '返回基本信息' : '上一部分'}
+                    {sectionIndex === 0 ? '返回生存质量问卷' : '上一部分'}
                   </button>
                   
                   <button 
@@ -392,7 +396,7 @@ export default function QuestionnairePage() {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
           </svg>
-          返回基本信息
+          返回生存质量问卷
         </button>
         
         <button 

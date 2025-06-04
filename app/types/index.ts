@@ -64,6 +64,7 @@ export interface AssessmentResult {
   domainScores: DomainScores;
   newEncodedScores: ReEncodedScores;
   sumScore: number | null;
+  haemqolScores?: HaemqolScores; // 添加HAEMO-QoL-A问卷分数
 }
 
 // 患者记录类型（用于存储和导出）
@@ -72,5 +73,23 @@ export interface PatientRecord {
   timestamp?: string;              // 记录时间戳
   patientInfo: PatientInfo;        // 患者信息
   answers: HalAnswers;             // 问卷答案
+  haemqolAnswers?: HaemqolAnswers; // HAEMO-QoL-A问卷答案
   assessmentResult: AssessmentResult; // 评估结果
+}
+
+// HAEMO-QoL-A问卷答案类型 (q1-q41)
+export type HaemqolQuestionId = `hq${number}`;
+export type HaemqolAnswerValue = "0" | "1" | "2" | "3" | "4" | "5" | "";
+
+export interface HaemqolAnswers {
+  [key: HaemqolQuestionId]: HaemqolAnswerValue;
+}
+
+// HAEMO-QoL-A问卷分数类型
+export interface HaemqolScores {
+  part1: number | null;  // 第一部分分数 (q1-q11)
+  part2: number | null;  // 第二部分分数 (q12-q22) 
+  part3: number | null;  // 第三部分分数 (q23-q36)
+  part4: number | null;  // 第四部分分数 (q37-q41)
+  total: number | null;  // 总分
 } 

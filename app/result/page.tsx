@@ -26,13 +26,13 @@ import {
 
 // 域名标题映射
 const DOMAIN_TITLES: Record<string, string> = {
-  LSKS: "躺坐跪站",
-  LEGS: "下肢功能",
-  ARMS: "上肢功能",
-  TRANS: "交通工具",
-  SELFC: "自我照料",
-  HOUSEH: "家务劳动",
-  LEISPO: "休闲体育",
+  LSKS: "成人血友病活动列表-躺坐跪站",
+  LEGS: "成人血友病活动列表-下肢功能",
+  ARMS: "成人血友病活动列表-上肢功能",
+  TRANS: "成人血友病活动列表-交通工具",
+  SELFC: "成人血友病活动列表-自我照料",
+  HOUSEH: "成人血友病活动列表-家务劳动",
+  LEISPO: "成人血友病活动列表-休闲体育",
 };
 
 // 域名对应的图标和描述
@@ -178,9 +178,9 @@ const ResultPage: React.FC = () => {
     try {
       setLoadingState('导出当前患者数据');
       if (exportFormat === 'csv') {
-        exportToCSV(patientInfo, answers, assessmentResult.domainScores);
+        exportToCSV(patientInfo, answers, assessmentResult.domainScores, assessmentResult.haemqolScores);
       } else {
-        exportToExcel(patientInfo, answers, assessmentResult.domainScores);
+        exportToExcel(patientInfo, answers, assessmentResult.domainScores, assessmentResult.haemqolScores);
       }
       setLoadingState('导出完成');
     } catch (error) {
@@ -248,11 +248,11 @@ const ResultPage: React.FC = () => {
         <ProgressIndicator 
           currentStep={4}
           totalSteps={4}
-          labels={['患者信息', '问卷填写', '确认信息', '查看结果']}
+          labels={['患者信息', '生存质量问卷', 'HAL问卷', '结果']}
         />
         
         <div className="mt-6 p-6 bg-white rounded-lg shadow-lg">
-          <h1 className="text-2xl font-bold text-center mb-6">HAL评估结果</h1>
+          <h1 className="text-2xl font-bold text-center mb-6">评估结果</h1>
           
           {/* 患者信息卡片 */}
           <div className="mb-8 bg-gray-50 rounded-lg p-5 shadow-sm">
@@ -296,9 +296,91 @@ const ResultPage: React.FC = () => {
             </div>
           </div>
           
+          {/* 添加HAEMO-QoL-A问卷结果区块 */}
+          {assessmentResult.haemqolScores && (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-blue-700 mb-5">HAEMO-QoL-A生存质量量表评估</h2>
+              
+              <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 p-6 rounded-lg shadow-sm mb-6">
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-indigo-600 mb-1">
+                    {assessmentResult.haemqolScores.total !== null ? assessmentResult.haemqolScores.total.toFixed(1) : 'N/A'}
+                  </div>
+                  <div className="font-medium text-indigo-800">生存质量总分</div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white p-4 rounded-lg border shadow-sm">
+                  <h3 className="font-medium text-gray-700 mb-2">第一部分：日常生活影响</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <span>得分：</span>
+                    <span className="font-bold text-indigo-600">
+                      {assessmentResult.haemqolScores.part1 !== null ? assessmentResult.haemqolScores.part1.toFixed(1) : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div 
+                      className="bg-indigo-600 h-2.5 rounded-full" 
+                      style={{ width: `${assessmentResult.haemqolScores.part1 || 0}%` }}
+                    />
+                  </div>
+                </div>
+                
+                <div className="bg-white p-4 rounded-lg border shadow-sm">
+                  <h3 className="font-medium text-gray-700 mb-2">第二部分：情绪及心情影响</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <span>得分：</span>
+                    <span className="font-bold text-indigo-600">
+                      {assessmentResult.haemqolScores.part2 !== null ? assessmentResult.haemqolScores.part2.toFixed(1) : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div 
+                      className="bg-indigo-600 h-2.5 rounded-full" 
+                      style={{ width: `${assessmentResult.haemqolScores.part2 || 0}%` }}
+                    />
+                  </div>
+                </div>
+                
+                <div className="bg-white p-4 rounded-lg border shadow-sm">
+                  <h3 className="font-medium text-gray-700 mb-2">第三部分：工作生活影响</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <span>得分：</span>
+                    <span className="font-bold text-indigo-600">
+                      {assessmentResult.haemqolScores.part3 !== null ? assessmentResult.haemqolScores.part3.toFixed(1) : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div 
+                      className="bg-indigo-600 h-2.5 rounded-full" 
+                      style={{ width: `${assessmentResult.haemqolScores.part3 || 0}%` }}
+                    />
+                  </div>
+                </div>
+                
+                <div className="bg-white p-4 rounded-lg border shadow-sm">
+                  <h3 className="font-medium text-gray-700 mb-2">第四部分：治疗经历影响</h3>
+                  <div className="flex items-center justify-between mb-1">
+                    <span>得分：</span>
+                    <span className="font-bold text-indigo-600">
+                      {assessmentResult.haemqolScores.part4 !== null ? assessmentResult.haemqolScores.part4.toFixed(1) : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div 
+                      className="bg-indigo-600 h-2.5 rounded-full" 
+                      style={{ width: `${assessmentResult.haemqolScores.part4 || 0}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* 总分展示 */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-blue-700 mb-5">总体评估得分</h2>
+            <h2 className="text-xl font-semibold text-blue-700 mb-5">HAL功能活动评估</h2>
             
             <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg shadow-sm mb-6">
               <div className="text-center">

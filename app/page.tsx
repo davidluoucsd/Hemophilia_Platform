@@ -125,12 +125,14 @@ const HomePage: React.FC = () => {
     // 保存患者信息
     setIsLoading(true);
     try {
-      await setPatientInfo(formData);
-      router.push('/questionnaire');
+      // 调用保存方法，但不等待其完成
+      setPatientInfo(formData);
+      
+      // 立即导航到HAEMO-QoL-A问卷页面
+      router.push('/haemqol');
     } catch (error) {
       console.error('保存患者信息失败:', error);
       setErrors({ submit: '保存患者信息失败，请重试' });
-    } finally {
       setIsLoading(false);
     }
   };

@@ -10,9 +10,10 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { PatientInfo, HalAnswers, AssessmentResult, PatientRecord } from '../types';
-import { loadPatientInfo, loadAnswers, savePatientInfo, saveAnswer, saveAnswers, clearSessionData } from '../utils/db';
+import { PatientInfo, HalAnswers, HaemqolAnswers, AssessmentResult, PatientRecord, HaemqolScores } from '../types';
+import { loadPatientInfo, loadAnswers, savePatientInfo, saveAnswer, saveAnswers, clearSessionData, loadHaemqolAnswers, saveHaemqolAnswer, saveHaemqolAnswers } from '../utils/db';
 import { calculateAllScores, determineAgeGroup } from '../utils/scoring';
+import { calculateHaemqolScores } from '../haemqol/scoring';
 
 // 应用启动时清除之前的数据
 if (typeof window !== 'undefined') {
@@ -43,10 +44,15 @@ interface HalState {
   patientInfo: PatientInfo | null;
   setPatientInfo: (info: PatientInfo) => void;
   
-  // 问卷答案
+  // HAL问卷答案
   answers: HalAnswers;
   setAnswer: (questionId: string, value: string) => void;
   setAnswers: (answers: HalAnswers) => void;
+  
+  // HAEMO-QoL-A问卷答案
+  haemqolAnswers: HaemqolAnswers;
+  setHaemqolAnswer: (questionId: string, value: string) => void;
+  setHaemqolAnswers: (answers: HaemqolAnswers) => void;
   
   // 评估结果
   assessmentResult: AssessmentResult | null;
@@ -65,8 +71,8 @@ interface HalState {
   setError: (error: string | null) => void;
   
   // 工作流程
-  currentStep: 'info' | 'questionnaire' | 'confirm' | 'results';
-  setCurrentStep: (step: 'info' | 'questionnaire' | 'confirm' | 'results') => void;
+  currentStep: 'info' | 'haemqol' | 'questionnaire' | 'confirm' | 'results';
+  setCurrentStep: (step: 'info' | 'haemqol' | 'questionnaire' | 'confirm' | 'results') => void;
   
   // 数据操作
   clearData: () => void;
@@ -79,6 +85,7 @@ export const useHalStore = create<HalState>()(
       // 初始状态
       patientInfo: null,
       answers: {},
+      haemqolAnswers: {},
       assessmentResult: null,
       patientRecords: [],
       isLoading: false,
@@ -94,8 +101,18 @@ export const useHalStore = create<HalState>()(
             ...info, 
             ageGroup: determineAgeGroup(info.age) 
           };
-          await savePatientInfo(updatedInfo);
-          set({ patientInfo: updatedInfo, isLoading: false });
+          
+          // 先更新状态，再保存到存储
+          set({ patientInfo: updatedInfo });
+          
+          // 异步保存到存储，但不等待完成
+          savePatientInfo(updatedInfo)
+            .catch(error => {
+              console.error('保存患者信息到存储时出错:', error);
+            })
+            .finally(() => {
+              set({ isLoading: false });
+            });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : '保存患者信息时出错',
@@ -104,7 +121,7 @@ export const useHalStore = create<HalState>()(
         }
       },
       
-      // 问卷答案操作
+      // HAL问卷答案操作
       setAnswer: async (questionId, value) => {
         try {
           set({ isLoading: true, error: null });
@@ -133,21 +150,63 @@ export const useHalStore = create<HalState>()(
         }
       },
       
+      // HAEMO-QoL-A问卷答案操作
+      setHaemqolAnswer: async (questionId, value) => {
+        try {
+          set({ isLoading: true, error: null });
+          const currentAnswers = get().haemqolAnswers;
+          const updatedAnswers = { ...currentAnswers, [questionId]: value };
+          await saveHaemqolAnswer(questionId as any, value as any);
+          set({ haemqolAnswers: updatedAnswers, isLoading: false });
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : '保存HAEMO-QoL-A答案时出错',
+            isLoading: false 
+          });
+        }
+      },
+      
+      setHaemqolAnswers: async (haemqolAnswers) => {
+        try {
+          set({ isLoading: true, error: null });
+          await saveHaemqolAnswers(haemqolAnswers);
+          set({ haemqolAnswers, isLoading: false });
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : '保存HAEMO-QoL-A答案时出错',
+            isLoading: false 
+          });
+        }
+      },
+      
       // 计算结果
       calculateResults: () => {
-        const { answers } = get();
-        const results = calculateAllScores(answers);
-        set({ assessmentResult: results });
+        const { answers, haemqolAnswers } = get();
+        
+        // 计算HAL问卷结果
+        const halResults = calculateAllScores(answers);
+        
+        // 计算HAEMO-QoL-A问卷结果
+        const haemqolScores = calculateHaemqolScores(haemqolAnswers);
+        
+        // 综合评估结果
+        const completeResults: AssessmentResult = {
+          ...halResults,
+          haemqolScores
+        };
+        
+        set({ assessmentResult: completeResults });
       },
       
       // 患者记录管理函数
       addPatientRecord: (record) => {
-        const { patientInfo, answers, assessmentResult } = get();
+        const { patientInfo, answers, haemqolAnswers, assessmentResult } = get();
         
         // 如果提供了特定记录，使用该记录；否则使用当前状态创建新记录
         const newRecord: PatientRecord = record || {
           patientInfo: patientInfo!,
           answers: answers,
+          haemqolAnswers: haemqolAnswers,
           assessmentResult: assessmentResult!,
           timestamp: new Date().toISOString()
         };
@@ -180,6 +239,7 @@ export const useHalStore = create<HalState>()(
           set({
             patientInfo: null,
             answers: {},
+            haemqolAnswers: {},
             assessmentResult: null,
             currentStep: 'info',
             isLoading: false
@@ -197,10 +257,12 @@ export const useHalStore = create<HalState>()(
           set({ isLoading: true, error: null });
           const patientInfo = await loadPatientInfo();
           const answers = await loadAnswers();
+          const haemqolAnswers = await loadHaemqolAnswers();
           
           set({
             patientInfo: patientInfo || null,
             answers: answers || {},
+            haemqolAnswers: haemqolAnswers || {},
             isLoading: false
           });
         } catch (error) {
@@ -218,6 +280,7 @@ export const useHalStore = create<HalState>()(
       partialize: (state) => ({
         patientInfo: state.patientInfo,
         answers: state.answers,
+        haemqolAnswers: state.haemqolAnswers,
         assessmentResult: state.assessmentResult,
         patientRecords: state.patientRecords,
         currentStep: state.currentStep

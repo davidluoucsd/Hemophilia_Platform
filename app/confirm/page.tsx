@@ -17,12 +17,14 @@ import ProgressIndicator from '../components/ProgressIndicator';
 import { formatDate } from '../utils/exportUtils';
 import { getQuestionTitle } from '../utils/questions';
 import { QUESTION_SECTIONS } from '../utils/questions';
+import { HAEMQOL_SECTIONS, formatHaemqolAnswerText } from '../haemqol/questions';
 
 const ConfirmPage: React.FC = () => {
   const router = useRouter();
   const { 
     patientInfo, 
     answers, 
+    haemqolAnswers,
     isLoading, 
     loadData,
     setCurrentStep
@@ -38,6 +40,9 @@ const ConfirmPage: React.FC = () => {
     const sections: Record<string, boolean> = {};
     QUESTION_SECTIONS.forEach((_, index) => {
       sections[`section-${index}`] = true; // 默认展开所有部分
+    });
+    HAEMQOL_SECTIONS.forEach((_, index) => {
+      sections[`haemqol-section-${index}`] = true; // 默认展开所有HAEMO-QoL-A部分
     });
     setExpandedSections(sections);
   }, []);
@@ -103,6 +108,11 @@ const ConfirmPage: React.FC = () => {
     router.push('/questionnaire');
   };
   
+  // 编辑HAEMO-QoL-A问卷
+  const handleEditHaemqolAnswers = () => {
+    router.push('/haemqol');
+  };
+  
   // 提交并查看结果
   const handleViewResults = () => {
     router.push('/result');
@@ -118,7 +128,7 @@ const ConfirmPage: React.FC = () => {
     router.push('/questionnaire');
   };
   
-  // 格式化回答展示
+  // 格式化HAL回答展示
   const formatAnswer = (value: string): string => {
     switch (value) {
       case '1': return '不可能完成';
@@ -143,6 +153,33 @@ const ConfirmPage: React.FC = () => {
       case '6': return 'text-green-700'; // 没有困难
       case '8': return 'text-gray-500'; // 不适用
       default: return 'text-gray-400';
+    }
+  };
+
+  // 获取HAEMO-QoL-A答案值对应的颜色
+  const getHaemqolAnswerColor = (value: string, isReverse: boolean = false): string => {
+    // 对于正向题目，颜色需要反转
+    if (isReverse) {
+      switch (value) {
+        case '0': return 'text-green-700'; // 最好
+        case '1': return 'text-green-600';
+        case '2': return 'text-yellow-600';
+        case '3': return 'text-orange-500';
+        case '4': return 'text-red-500';
+        case '5': return 'text-red-600'; // 最差
+        default: return 'text-gray-400';
+      }
+    } else {
+      // 负向题目
+      switch (value) {
+        case '0': return 'text-green-700'; // 最好
+        case '1': return 'text-green-600';
+        case '2': return 'text-yellow-600';
+        case '3': return 'text-orange-500';
+        case '4': return 'text-red-500';
+        case '5': return 'text-red-600'; // 最差
+        default: return 'text-gray-400';
+      }
     }
   };
   
@@ -183,7 +220,7 @@ const ConfirmPage: React.FC = () => {
         <ProgressIndicator 
           currentStep={3}
           totalSteps={4}
-          labels={['患者信息', '问卷填写', '确认信息', '查看结果']}
+          labels={['患者信息', '生存质量问卷', 'HAL问卷', '结果']}
         />
         
         <div className="mt-6 p-6 bg-white rounded-lg shadow-lg">
@@ -191,7 +228,7 @@ const ConfirmPage: React.FC = () => {
           
           {/* 患者信息卡片 */}
           <div className="mb-8 bg-gray-50 rounded-lg p-5 shadow-sm">
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-blue-700">患者基本信息</h2>
               <button 
                 onClick={handleEditPatientInfo}
@@ -205,7 +242,6 @@ const ConfirmPage: React.FC = () => {
                 </span>
               </button>
             </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white p-3 rounded-md border-l-4 border-blue-500 shadow-sm">
                 <div className="text-xs text-gray-500 mb-1">姓名</div>
@@ -245,7 +281,82 @@ const ConfirmPage: React.FC = () => {
             </div>
           </div>
           
-          {/* 问卷回答部分 */}
+          {/* HAEMO-QoL-A问卷回答部分 - 调整到HAL前面 */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-semibold text-blue-700">HAEMO-QoL-A问卷回答</h2>
+              <button 
+                onClick={handleEditHaemqolAnswers}
+                className="px-3 py-1 text-sm bg-white border border-blue-500 text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
+              >
+                <span className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  编辑
+                </span>
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {HAEMQOL_SECTIONS.map((section, sectionIndex) => {
+                const sectionId = `haemqol-section-${sectionIndex}`;
+                const isExpanded = expandedSections[sectionId];
+                
+                // 检查此部分是否有回答的问题
+                const hasAnsweredQuestions = section.questions.some(q => 
+                  haemqolAnswers[`hq${q.id}`] !== undefined && haemqolAnswers[`hq${q.id}`] !== ''
+                );
+                
+                if (!hasAnsweredQuestions) return null;
+                
+                return (
+                  <div key={sectionId} className="bg-gray-50 rounded-lg overflow-hidden shadow-sm">
+                    <div 
+                      className="flex justify-between items-center p-4 cursor-pointer bg-gray-100 hover:bg-gray-200 transition-colors"
+                      onClick={() => toggleSection(sectionId)}
+                    >
+                      <h3 className="font-medium text-gray-800">{section.title} - {section.description}</h3>
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className={`h-5 w-5 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        viewBox="0 0 20 20" 
+                        fill="currentColor"
+                      >
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    
+                    {isExpanded && (
+                      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {section.questions.map(question => {
+                          const questionId = `hq${question.id}` as keyof typeof haemqolAnswers;
+                          const answer = haemqolAnswers[questionId];
+                          
+                          if (!answer) return null;
+                          
+                          return (
+                            <div 
+                              key={questionId} 
+                              className="bg-white p-3 rounded-md border-l-4 border-blue-100 hover:shadow-md transition-shadow"
+                            >
+                              <div className="text-xs text-gray-500 mb-1">问题 {question.id}</div>
+                              <div className="font-medium text-gray-800 mb-2">{question.title}</div>
+                              <div className={`${getHaemqolAnswerColor(answer, question.isReverse)} font-semibold`}>
+                                {formatHaemqolAnswerText(answer)} ({answer})
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          
+          {/* HAL问卷回答部分 - 调整到HAEMO-QoL-A后面 */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-xl font-semibold text-blue-700">HAL问卷回答</h2>
@@ -329,7 +440,7 @@ const ConfirmPage: React.FC = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
               </svg>
-              返回问卷
+              返回HAL问卷
             </button>
             
             <button
