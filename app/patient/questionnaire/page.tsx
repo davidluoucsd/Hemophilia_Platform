@@ -12,12 +12,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import ProgressIndicator from '../components/ProgressIndicator';
-import Question from '../components/Question';
-import { useHalStore } from '../store';
-import { QuestionId, AnswerValue } from '../types';
-import { QUESTION_SECTIONS } from '../utils/questions';
-import { checkAllQuestionsAnswered, getUnansweredQuestions } from '../utils/scoring';
+import ProgressIndicator from '../../shared/components/ProgressIndicator';
+import Question from '../../shared/components/Question';
+import { useHalStore } from '../../shared/store';
+import { QuestionId, AnswerValue } from '../../shared/types';
+import { QUESTION_SECTIONS } from '../../shared/utils/questions';
+import { checkAllQuestionsAnswered, getUnansweredQuestions } from '../../shared/utils/scoring';
+import { autoFillHalQuestionnaire, generateRandomHalAnswers } from '../../shared/utils/testUtils';
 
 export default function QuestionnairePage() {
   const router = useRouter();
@@ -111,18 +112,14 @@ export default function QuestionnairePage() {
       return;
     }
     
-    // 设置当前步骤为确认页面
-    setCurrentStep('confirm');
-    
-    // 使用非阻塞导航跳转到确认页面
-    setTimeout(() => {
-      router.push('/confirm');
-    }, 0);
+    // HAL问卷填写完成，返回Dashboard
+    alert('HAL 血友病活动列表填写完成！');
+    router.push('/patient/dashboard');
   };
 
   // 返回上一页
   const handleBack = () => {
-    router.push('/haemqol');
+    router.push('/patient/dashboard');
   };
   
   // 切换到下一部分
@@ -168,6 +165,26 @@ export default function QuestionnairePage() {
     }
   };
   
+  // 随机填充问卷 (测试功能)
+  const handleRandomFill = () => {
+    const answerValues: AnswerValue[] = ['1', '2', '3', '4', '5', '6'];
+    
+    // 遍历所有section中的questions
+    QUESTION_SECTIONS.forEach(section => {
+      section.questions.forEach(question => {
+        const questionId = `q${question.id}` as QuestionId;
+        const randomAnswerIndex = Math.floor(Math.random() * answerValues.length);
+        const randomAnswer = answerValues[randomAnswerIndex];
+        setAnswer(questionId, randomAnswer);
+      });
+    });
+    
+    // 更新完成状态
+    setTimeout(() => {
+      updateCompletedSections();
+    }, 100);
+  };
+  
   // 设置当前活动的部分（通过滚动监测）
   useEffect(() => {
     const handleScroll = () => {
@@ -206,12 +223,6 @@ export default function QuestionnairePage() {
     <div className="container mx-auto px-4 pb-16">
       <h1 className="page-title">血友病活动列表（HAL）问卷</h1>
       
-      <ProgressIndicator 
-        currentStep={2}
-        totalSteps={4}
-        labels={['患者信息', '生存质量问卷', 'HAL问卷', '结果']}
-      />
-
       {/* 导航按钮 */}
       <div className="flex justify-between mb-6">
         <button 
@@ -221,18 +232,30 @@ export default function QuestionnairePage() {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
           </svg>
-          返回生存质量问卷
+          返回任务中心
         </button>
         
-        <button 
-          onClick={handleSubmit}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-all"
-        >
-          继续
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={handleRandomFill}
+            className="px-4 py-2 border border-orange-300 text-orange-600 rounded-md hover:bg-orange-50 flex items-center gap-2 shadow-sm transition-all"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            随机填充 (测试)
+          </button>
+          
+          <button 
+            onClick={handleSubmit}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-all"
+          >
+            继续
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* 验证提示 */}
@@ -367,7 +390,7 @@ export default function QuestionnairePage() {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
                     </svg>
-                    {sectionIndex === 0 ? '返回生存质量问卷' : '上一部分'}
+                    {sectionIndex === 0 ? '返回任务中心' : '上一部分'}
                   </button>
                   
                   <button 
@@ -396,7 +419,7 @@ export default function QuestionnairePage() {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
           </svg>
-          返回生存质量问卷
+          返回任务中心
         </button>
         
         <button 

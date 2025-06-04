@@ -8,7 +8,7 @@
  * 未经版权所有者明确授权，任何人不得复制、修改、合并、出版发行、散布、再授权或销售本软件的副本。
  */
 
-import { HaemqolAnswers, HaemqolScores } from '../types';
+import { HaemqolAnswers, HaemqolScores } from '../../shared/types';
 import { HAEMQOL_SECTIONS, isReverseQuestion } from './questions';
 
 // 定义问卷各部分的问题编号

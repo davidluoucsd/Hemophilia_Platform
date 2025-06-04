@@ -10,7 +10,7 @@
 
 import { PatientInfo, HalAnswers, DomainScores, PatientRecord, HaemqolScores } from '../types';
 import * as XLSX from 'xlsx';
-import { HAEMQOL_SCORE_DESCRIPTIONS } from '../haemqol/questions';
+import { HAEMQOL_SCORE_DESCRIPTIONS } from '../../patient/haemqol/questions';
 
 // 域名标题映射
 const DOMAIN_TITLES: Record<string, string> = {

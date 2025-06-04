@@ -11,9 +11,26 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { PatientInfo, HalAnswers, HaemqolAnswers, AssessmentResult, PatientRecord, HaemqolScores } from '../types';
-import { loadPatientInfo, loadAnswers, savePatientInfo, saveAnswer, saveAnswers, clearSessionData, loadHaemqolAnswers, saveHaemqolAnswer, saveHaemqolAnswers } from '../utils/db';
+import { 
+  loadPatientInfo, 
+  loadAnswers, 
+  savePatientInfo, 
+  saveAnswer, 
+  saveAnswers, 
+  clearSessionData, 
+  loadHaemqolAnswers, 
+  saveHaemqolAnswer, 
+  saveHaemqolAnswers,
+  saveUserSpecificPatientInfo,
+  loadUserSpecificPatientInfo,
+  saveUserSpecificAnswers,
+  loadUserSpecificAnswers,
+  saveUserSpecificHaemqolAnswers,
+  loadUserSpecificHaemqolAnswers,
+  clearUserSpecificData
+} from '../utils/database';
 import { calculateAllScores, determineAgeGroup } from '../utils/scoring';
-import { calculateHaemqolScores } from '../haemqol/scoring';
+import { calculateHaemqolScores } from '../../patient/haemqol/scoring';
 
 // 应用启动时清除之前的数据
 if (typeof window !== 'undefined') {
@@ -39,7 +56,28 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// 用户类型
+export type UserRole = 'doctor' | 'patient' | null;
+
+// 当前用户信息
+export interface CurrentUser {
+  id: string;
+  name: string;
+  role: string;
+}
+
 interface HalState {
+  // 身份验证状态
+  userRole: UserRole;
+  currentUser: CurrentUser | null;
+  isAuthenticated: boolean;
+  setUserRole: (role: UserRole) => void;
+  setCurrentUser: (user: CurrentUser | null) => void;
+  setAuthenticated: (authenticated: boolean) => void;
+  setIsAuthenticated: (authenticated: boolean) => void;
+  login: (role: UserRole, user: CurrentUser) => void;
+  logout: () => void;
+  
   // 患者信息
   patientInfo: PatientInfo | null;
   setPatientInfo: (info: PatientInfo) => void;
@@ -76,6 +114,7 @@ interface HalState {
   
   // 数据操作
   clearData: () => void;
+  clearAllData: () => void;
   loadData: () => Promise<void>;
 }
 
@@ -83,6 +122,9 @@ export const useHalStore = create<HalState>()(
   persist(
     (set, get) => ({
       // 初始状态
+      userRole: null,
+      currentUser: null,
+      isAuthenticated: false,
       patientInfo: null,
       answers: {},
       haemqolAnswers: {},
@@ -91,6 +133,72 @@ export const useHalStore = create<HalState>()(
       isLoading: false,
       error: null,
       currentStep: 'info',
+      
+      // 身份验证操作
+      setUserRole: (role) => set({ userRole: role }),
+      setCurrentUser: (user) => set({ currentUser: user }),
+      setAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
+      setIsAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
+      
+      login: async (role, user) => {
+        // Clear any existing data from previous user first
+        const currentUser = get().currentUser;
+        if (currentUser && currentUser.id !== user.id) {
+          console.log('Switching users, clearing previous data...');
+          // Clear state
+          set({
+            patientInfo: null,
+            answers: {},
+            haemqolAnswers: {},
+            assessmentResult: null,
+            currentStep: 'info'
+          });
+        }
+        
+        // Set new user login state
+        set({ 
+          userRole: role, 
+          currentUser: user, 
+          isAuthenticated: true 
+        });
+        
+        // Load new user's data
+        try {
+          await get().loadData();
+        } catch (error) {
+          console.error('Error loading user data after login:', error);
+        }
+      },
+      
+      logout: () => {
+        // Clear all user data including questionnaire answers
+        const currentUser = get().currentUser;
+        
+        set({ 
+          userRole: null, 
+          currentUser: null, 
+          isAuthenticated: false,
+          patientInfo: null,
+          answers: {},
+          haemqolAnswers: {},
+          assessmentResult: null,
+          currentStep: 'info'
+        });
+        
+        // Clear user-specific data
+        if (currentUser?.id) {
+          clearUserSpecificData(currentUser.id).catch(error => {
+            console.error('Error clearing user-specific data on logout:', error);
+          });
+        }
+        
+        // Also clear session storage
+        if (typeof window !== 'undefined') {
+          clearSessionData().catch(error => {
+            console.error('Error clearing session data on logout:', error);
+          });
+        }
+      },
       
       // 患者信息操作
       setPatientInfo: async (info) => {
@@ -105,14 +213,16 @@ export const useHalStore = create<HalState>()(
           // 先更新状态，再保存到存储
           set({ patientInfo: updatedInfo });
           
-          // 异步保存到存储，但不等待完成
-          savePatientInfo(updatedInfo)
-            .catch(error => {
-              console.error('保存患者信息到存储时出错:', error);
-            })
-            .finally(() => {
-              set({ isLoading: false });
-            });
+          // 使用用户特定存储
+          const currentUser = get().currentUser;
+          if (currentUser?.id) {
+            await saveUserSpecificPatientInfo(updatedInfo, currentUser.id);
+          } else {
+            // 回退到原有存储方式
+            await savePatientInfo(updatedInfo);
+          }
+          
+          set({ isLoading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : '保存患者信息时出错',
@@ -124,58 +234,74 @@ export const useHalStore = create<HalState>()(
       // HAL问卷答案操作
       setAnswer: async (questionId, value) => {
         try {
-          set({ isLoading: true, error: null });
           const currentAnswers = get().answers;
           const updatedAnswers = { ...currentAnswers, [questionId]: value };
-          await saveAnswer(questionId as any, value as any);
-          set({ answers: updatedAnswers, isLoading: false });
+          
+          // 立即更新状态
+          set({ answers: updatedAnswers });
+          
+          // 异步保存到数据库
+          const currentUser = get().currentUser;
+          if (currentUser?.id) {
+            await saveUserSpecificAnswers(updatedAnswers, currentUser.id);
+          } else {
+            await saveAnswer(questionId as any, value as any);
+          }
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : '保存答案时出错',
-            isLoading: false 
-          });
+          console.error('保存答案时出错:', error);
         }
       },
       
       setAnswers: async (answers) => {
         try {
-          set({ isLoading: true, error: null });
-          await saveAnswers(answers);
-          set({ answers, isLoading: false });
+          set({ answers });
+          
+          // 异步保存到数据库
+          const currentUser = get().currentUser;
+          if (currentUser?.id) {
+            await saveUserSpecificAnswers(answers, currentUser.id);
+          } else {
+            await saveAnswers(answers);
+          }
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : '保存答案时出错',
-            isLoading: false 
-          });
+          console.error('保存答案时出错:', error);
         }
       },
       
       // HAEMO-QoL-A问卷答案操作
       setHaemqolAnswer: async (questionId, value) => {
         try {
-          set({ isLoading: true, error: null });
           const currentAnswers = get().haemqolAnswers;
           const updatedAnswers = { ...currentAnswers, [questionId]: value };
-          await saveHaemqolAnswer(questionId as any, value as any);
-          set({ haemqolAnswers: updatedAnswers, isLoading: false });
+          
+          // 立即更新状态
+          set({ haemqolAnswers: updatedAnswers });
+          
+          // 异步保存到数据库
+          const currentUser = get().currentUser;
+          if (currentUser?.id) {
+            await saveUserSpecificHaemqolAnswers(updatedAnswers, currentUser.id);
+          } else {
+            await saveHaemqolAnswer(questionId as any, value as any);
+          }
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : '保存HAEMO-QoL-A答案时出错',
-            isLoading: false 
-          });
+          console.error('保存HAEMO-QoL-A答案时出错:', error);
         }
       },
       
       setHaemqolAnswers: async (haemqolAnswers) => {
         try {
-          set({ isLoading: true, error: null });
-          await saveHaemqolAnswers(haemqolAnswers);
-          set({ haemqolAnswers, isLoading: false });
+          set({ haemqolAnswers });
+          
+          // 异步保存到数据库
+          const currentUser = get().currentUser;
+          if (currentUser?.id) {
+            await saveUserSpecificHaemqolAnswers(haemqolAnswers, currentUser.id);
+          } else {
+            await saveHaemqolAnswers(haemqolAnswers);
+          }
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : '保存HAEMO-QoL-A答案时出错',
-            isLoading: false 
-          });
+          console.error('保存HAEMO-QoL-A答案时出错:', error);
         }
       },
       
@@ -252,19 +378,48 @@ export const useHalStore = create<HalState>()(
         }
       },
       
+      clearAllData: () => {
+        set({
+          patientInfo: null,
+          answers: {},
+          haemqolAnswers: {},
+          assessmentResult: null,
+          currentStep: 'info',
+          isLoading: false
+        });
+      },
+      
       loadData: async () => {
         try {
           set({ isLoading: true, error: null });
-          const patientInfo = await loadPatientInfo();
-          const answers = await loadAnswers();
-          const haemqolAnswers = await loadHaemqolAnswers();
           
-          set({
-            patientInfo: patientInfo || null,
-            answers: answers || {},
-            haemqolAnswers: haemqolAnswers || {},
-            isLoading: false
-          });
+          const currentUser = get().currentUser;
+          
+          if (currentUser?.id) {
+            // Load user-specific data
+            const patientInfo = await loadUserSpecificPatientInfo(currentUser.id);
+            const answers = await loadUserSpecificAnswers(currentUser.id);
+            const haemqolAnswers = await loadUserSpecificHaemqolAnswers(currentUser.id);
+            
+            set({
+              patientInfo: patientInfo || null,
+              answers: answers || {},
+              haemqolAnswers: haemqolAnswers || {},
+              isLoading: false
+            });
+          } else {
+            // Fallback to legacy loading
+            const patientInfo = await loadPatientInfo();
+            const answers = await loadAnswers();
+            const haemqolAnswers = await loadHaemqolAnswers();
+            
+            set({
+              patientInfo: patientInfo || null,
+              answers: answers || {},
+              haemqolAnswers: haemqolAnswers || {},
+              isLoading: false
+            });
+          }
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : '加载数据时出错',

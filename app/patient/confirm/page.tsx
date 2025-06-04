@@ -12,11 +12,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useHalStore } from '../store';
-import ProgressIndicator from '../components/ProgressIndicator';
-import { formatDate } from '../utils/exportUtils';
-import { getQuestionTitle } from '../utils/questions';
-import { QUESTION_SECTIONS } from '../utils/questions';
+import { useHalStore } from '../../shared/store';
+import ProgressIndicator from '../../shared/components/ProgressIndicator';
+import { formatDate } from '../../shared/utils/exportUtils';
+import { getQuestionTitle } from '../../shared/utils/questions';
+import { QUESTION_SECTIONS } from '../../shared/utils/questions';
 import { HAEMQOL_SECTIONS, formatHaemqolAnswerText } from '../haemqol/questions';
 
 const ConfirmPage: React.FC = () => {
@@ -105,27 +105,27 @@ const ConfirmPage: React.FC = () => {
   
   // 返回问卷页面
   const handleBackToQuestionnaire = () => {
-    router.push('/questionnaire');
+    router.push('/patient/questionnaire');
   };
   
   // 编辑HAEMO-QoL-A问卷
   const handleEditHaemqolAnswers = () => {
-    router.push('/haemqol');
+    router.push('/patient/haemqol');
   };
   
   // 提交并查看结果
   const handleViewResults = () => {
-    router.push('/result');
+    router.push('/patient/result');
   };
   
   // 编辑患者信息
   const handleEditPatientInfo = () => {
-    router.push('/');
+    router.push('/patient/info');
   };
   
   // 编辑问卷回答
   const handleEditAnswers = () => {
-    router.push('/questionnaire');
+    router.push('/patient/questionnaire');
   };
   
   // 格式化HAL回答展示
