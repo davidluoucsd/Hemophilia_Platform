@@ -1,11 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 输出选项，固定为'export'以生成静态HTML/CSS/JS文件
-  output: 'export',
+  // 移除静态导出配置，因为我们有动态路由和数据库交互
+  // output: 'export',
   
   // 图像优化配置
   images: {
-    unoptimized: true, // 静态导出时必须禁用图像优化
+    unoptimized: false, // 启用图像优化
   },
   
   // 压缩配置

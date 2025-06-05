@@ -1,98 +1,161 @@
-# HAL问卷系统
+# Hemophilia Assessment Platform
 
-血友病活动列表（HAL）问卷系统，用于评估血友病患者的关节健康和功能状态。
+A comprehensive digital platform for hemophilia patient assessment using standardized questionnaires including HAL (Hemophilia Activities List) and HAEMO-QoL-A (Hemophilia Quality of Life Questionnaire for Adults).
 
-## 功能特点
+## Features
 
-- 患者信息收集与管理
-- HAL问卷填写与评分计算
-- 结果数据可视化展示
-- 数据导出（CSV、Excel）功能
-- 批量导出患者评估记录
-- 可作为桌面应用安装使用
+### Patient Portal
+- **Patient Registration & Login** - Secure patient account management
+- **HAL Questionnaire** - Hemophilia Activities List for joint health assessment
+- **HAEMO-QoL-A Questionnaire** - Quality of life assessment for adults with hemophilia
+- **Progress Tracking** - Real-time questionnaire completion status
+- **Results Dashboard** - View completed assessments and results
 
-## 技术栈
+### Doctor Portal
+- **Doctor Dashboard** - Overview of all patients and assessments
+- **Patient Management** - Assign and monitor questionnaires
+- **Task Assignment** - Create assessment tasks for specific patients
+- **Results Analysis** - View detailed scoring and analysis of patient assessments
+- **Data Export** - Export patient data and results (CSV, Excel formats)
+- **Progress Monitoring** - Track patient questionnaire completion rates
 
-- Next.js 15
-- React 19
-- TypeScript
-- Tailwind CSS
-- Electron
-- Chart.js
-- Zustand 状态管理
+### Technical Features
+- **Dual-Role System** - Separate interfaces for patients and healthcare providers
+- **Real-time Data Sync** - Instant updates across patient and doctor portals
+- **Offline Capability** - Desktop application with local data storage
+- **Data Visualization** - Interactive charts and graphs for assessment results
+- **Secure Data Storage** - Local IndexedDB storage with data integrity
+- **Cross-Platform** - Works as web application or desktop app
 
-## 开发指南
+## Technology Stack
 
-### 环境要求
+- **Frontend Framework**: Next.js 15 with React 19
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Desktop Application**: Electron
+- **State Management**: Zustand
+- **Data Visualization**: Chart.js
+- **Database**: IndexedDB (client-side)
+- **Build Tools**: Next.js build system with Electron Builder
 
-- Node.js 18+ 
-- npm 9+
+## Getting Started
 
-### 安装依赖
+### Prerequisites
 
-```bash
-cd hemophilia-next
-npm install
-```
+- Node.js 18 or higher
+- npm 9 or higher
 
-### 开发模式
+### Installation
 
-启动Next.js开发服务器：
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd hemophilia-next
+   ```
 
-```bash
-npm run dev
-```
-
-启动Electron开发模式：
-
-```bash
-npm run electron-dev
-```
-
-### 构建应用
-
-构建Web应用：
-
-```bash
-npm run build
-```
-
-构建桌面应用：
-
-```bash
-npm run electron-build
-```
-
-## 构建可执行文件 (exe)
-
-要构建Windows可执行文件，请按照以下步骤操作：
-
-1. 确保已安装所有依赖：
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-2. 创建应用图标：
-   ```bash
-   npm run create-ico
-   ```
+### Development
 
-3. 构建应用：
-   ```bash
-   npm run electron-build
-   ```
+Start the Next.js development server:
+```bash
+npm run dev
+```
 
-4. 构建完成后，可执行文件将位于`dist`目录中。
+Start Electron development mode:
+```bash
+npm run electron-dev
+```
 
-## 分发应用
+### Building
 
-构建完成后，以下文件将位于`dist`目录中：
+Build web application:
+```bash
+npm run build
+```
 
-- `HAL问卷系统 Setup 1.0.0.exe` - 安装程序
-- `hal-questionnaire-1.0.0-win.zip` - 便携版压缩包
+Build desktop application:
+```bash
+npm run electron-build
+```
 
-## 版权信息
+## Application Structure
 
-© 2024 罗骏哲（Junzhe Luo）. 版权所有.
+### Patient Workflow
+1. **Registration/Login** - Patients create accounts or log in
+2. **Dashboard** - View assigned questionnaires and progress
+3. **Questionnaire Completion** - Complete HAL and/or HAEMO-QoL-A assessments
+4. **Results Review** - View completion status and basic results
 
-未经版权所有者明确授权，任何人不得复制、修改、合并、出版发行、散布、再授权或销售本软件的副本。
+### Doctor Workflow
+1. **Login** - Healthcare providers access doctor portal
+2. **Patient Management** - View all patients and their assessment status
+3. **Task Assignment** - Assign specific questionnaires to patients
+4. **Results Analysis** - Review detailed scoring and patient progress
+5. **Data Export** - Generate reports and export data
+
+## Questionnaire Details
+
+### HAL (Hemophilia Activities List)
+- **Purpose**: Assess functional limitations in hemophilia patients
+- **Categories**: Legs/feet, arms/hands, basic functions, complex functions
+- **Scoring**: 1-6 scale (impossible to do → never difficult)
+- **Output**: Domain scores and total sum score
+
+### HAEMO-QoL-A (Hemophilia Quality of Life - Adults)
+- **Purpose**: Measure quality of life in adult hemophilia patients
+- **Domains**: Physical health, feelings/emotions, view of others, sports/school
+- **Scoring**: 1-5 scale (never → always)
+- **Output**: Domain scores and total percentage score
+
+## Data Management
+
+- **Local Storage**: All data stored locally using IndexedDB
+- **Data Integrity**: Built-in validation and error handling
+- **Privacy**: No external data transmission, complete local control
+- **Backup**: Manual data export capabilities for backup purposes
+
+## Security & Privacy
+
+- **Local-First**: All data remains on the local device
+- **No External APIs**: No internet connection required for core functionality
+- **User Authentication**: Simple role-based access control
+- **Data Ownership**: Complete user control over their data
+
+## Distribution
+
+The application can be distributed as:
+- **Web Application**: Deployed on web servers
+- **Desktop Application**: Windows executable (.exe)
+- **Portable Version**: No-install zip package
+
+## Development Status
+
+✅ **Completed Features**:
+- Patient and doctor authentication systems
+- HAL questionnaire implementation
+- HAEMO-QoL-A questionnaire implementation
+- Real-time progress tracking
+- Results calculation and display
+- Task assignment system
+- Data export functionality
+- Desktop application packaging
+
+🔧 **Current Focus**:
+- Performance optimization
+- User experience improvements
+- Enhanced data visualization
+- Advanced reporting features
+
+## License & Copyright
+
+© 2024 Junzhe Luo. All rights reserved.
+
+This software is proprietary and confidential. Unauthorized copying, distribution, or use is strictly prohibited without explicit written permission from the copyright holder.
+
+## Support
+
+For technical support or feature requests, please contact the development team.

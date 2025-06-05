@@ -27,8 +27,15 @@ import {
   loadUserSpecificAnswers,
   saveUserSpecificHaemqolAnswers,
   loadUserSpecificHaemqolAnswers,
-  clearUserSpecificData
+  clearUserSpecificData,
+  getDoctorDashboardStats,
+  getAllPatients,
+  createNewPatient,
+  searchPatients,
+  getPatientTasks,
+  assignQuestionnaire
 } from '../utils/database';
+import { DoctorDashboardData, Patient, Task } from '../types/database';
 import { calculateAllScores, determineAgeGroup } from '../utils/scoring';
 import { calculateHaemqolScores } from '../../patient/haemqol/scoring';
 
@@ -102,6 +109,24 @@ interface HalState {
   clearPatientRecords: () => void;
   getPatientRecords: () => PatientRecord[];
   
+  // Doctor-specific state for Stage 3
+  doctorDashboardData: DoctorDashboardData | null;
+  patientList: Patient[];
+  selectedPatient: Patient | null;
+  isDoctorLoading: boolean;
+  doctorError: string | null;
+  
+  // Doctor operations
+  loadDoctorDashboard: () => Promise<void>;
+  loadPatientList: () => Promise<void>;
+  searchPatientList: (query: string) => Promise<void>;
+  createPatient: (patientData: Omit<Patient, 'created_at' | 'updated_at'>) => Promise<boolean>;
+  selectPatient: (patient: Patient | null) => void;
+  assignQuestionnaireToPatient: (patientId: string, questionnaireType: 'haemqol' | 'hal', options?: any) => Promise<boolean>;
+  refreshDoctorData: () => Promise<void>;
+  setDoctorLoading: (loading: boolean) => void;
+  setDoctorError: (error: string | null) => void;
+  
   // 状态管理
   isLoading: boolean;
   error: string | null;
@@ -133,6 +158,13 @@ export const useHalStore = create<HalState>()(
       isLoading: false,
       error: null,
       currentStep: 'info',
+      
+      // Doctor-specific initial state
+      doctorDashboardData: null,
+      patientList: [],
+      selectedPatient: null,
+      isDoctorLoading: false,
+      doctorError: null,
       
       // 身份验证操作
       setUserRole: (role) => set({ userRole: role }),
@@ -200,6 +232,173 @@ export const useHalStore = create<HalState>()(
         }
       },
       
+      // Doctor-specific operations for Stage 3
+      loadDoctorDashboard: async () => {
+        const currentUser = get().currentUser;
+        if (!currentUser || currentUser.role !== 'doctor') {
+          set({ doctorError: 'Access denied: Doctor role required' });
+          return;
+        }
+
+        try {
+          set({ isDoctorLoading: true, doctorError: null });
+          const result = await getDoctorDashboardStats(currentUser.id);
+          
+          if (result.success && result.data) {
+            set({ doctorDashboardData: result.data, isDoctorLoading: false });
+          } else {
+            set({ doctorError: result.error || 'Failed to load dashboard', isDoctorLoading: false });
+          }
+        } catch (error) {
+          set({ 
+            doctorError: error instanceof Error ? error.message : 'Failed to load dashboard',
+            isDoctorLoading: false 
+          });
+        }
+      },
+
+      loadPatientList: async () => {
+        const currentUser = get().currentUser;
+        if (!currentUser || currentUser.role !== 'doctor') {
+          set({ doctorError: 'Access denied: Doctor role required' });
+          return;
+        }
+
+        try {
+          set({ isDoctorLoading: true, doctorError: null });
+          const result = await getAllPatients();
+          
+          if (result.success && result.data) {
+            set({ patientList: result.data, isDoctorLoading: false });
+          } else {
+            set({ doctorError: result.error || 'Failed to load patients', isDoctorLoading: false });
+          }
+        } catch (error) {
+          set({ 
+            doctorError: error instanceof Error ? error.message : 'Failed to load patients',
+            isDoctorLoading: false 
+          });
+        }
+      },
+
+      searchPatientList: async (query: string) => {
+        const currentUser = get().currentUser;
+        if (!currentUser || currentUser.role !== 'doctor') {
+          set({ doctorError: 'Access denied: Doctor role required' });
+          return;
+        }
+
+        try {
+          set({ isDoctorLoading: true, doctorError: null });
+          
+          if (!query.trim()) {
+            // If empty query, load all patients
+            await get().loadPatientList();
+            return;
+          }
+
+          const result = await searchPatients(query);
+          
+          if (result.success && result.data) {
+            set({ patientList: result.data, isDoctorLoading: false });
+          } else {
+            set({ doctorError: result.error || 'Failed to search patients', isDoctorLoading: false });
+          }
+        } catch (error) {
+          set({ 
+            doctorError: error instanceof Error ? error.message : 'Failed to search patients',
+            isDoctorLoading: false 
+          });
+        }
+      },
+
+      createPatient: async (patientData) => {
+        const currentUser = get().currentUser;
+        if (!currentUser || currentUser.role !== 'doctor') {
+          set({ doctorError: 'Access denied: Doctor role required' });
+          return false;
+        }
+
+        try {
+          set({ isDoctorLoading: true, doctorError: null });
+          const result = await createNewPatient(patientData);
+          
+          if (result.success) {
+            // Refresh patient list
+            await get().loadPatientList();
+            set({ isDoctorLoading: false });
+            return true;
+          } else {
+            set({ doctorError: result.error || 'Failed to create patient', isDoctorLoading: false });
+            return false;
+          }
+        } catch (error) {
+          set({ 
+            doctorError: error instanceof Error ? error.message : 'Failed to create patient',
+            isDoctorLoading: false 
+          });
+          return false;
+        }
+      },
+
+      selectPatient: (patient) => {
+        set({ selectedPatient: patient });
+      },
+
+      assignQuestionnaireToPatient: async (patientId, questionnaireType, options) => {
+        const currentUser = get().currentUser;
+        if (!currentUser || currentUser.role !== 'doctor') {
+          set({ doctorError: 'Access denied: Doctor role required' });
+          return false;
+        }
+
+        try {
+          set({ isDoctorLoading: true, doctorError: null });
+          const result = await assignQuestionnaire(patientId, questionnaireType, options);
+          
+          if (result.success) {
+            // Refresh dashboard data
+            await get().loadDoctorDashboard();
+            set({ isDoctorLoading: false });
+            return true;
+          } else {
+            let errorMessage = result.error || 'Failed to assign questionnaire';
+            
+            // Handle specific database constraint errors
+            if (errorMessage.includes('unique') || errorMessage.includes('constraint')) {
+              errorMessage = '数据库约束错误 - 可能需要清理旧数据。请联系技术支持或尝试重新初始化数据库。';
+            }
+            
+            set({ doctorError: errorMessage, isDoctorLoading: false });
+            return false;
+          }
+        } catch (error) {
+          let errorMessage = error instanceof Error ? error.message : 'Failed to assign questionnaire';
+          
+          // Handle specific database constraint errors
+          if (errorMessage.includes('unique') || errorMessage.includes('constraint') || 
+              errorMessage.includes('user_type') || errorMessage.includes('uniqueness requirements')) {
+            errorMessage = '数据库唯一性约束错误 - 请运行数据库修复脚本: 在控制台输入 fixDatabaseSchema()';
+          }
+          
+          set({ 
+            doctorError: errorMessage,
+            isDoctorLoading: false 
+          });
+          return false;
+        }
+      },
+
+      refreshDoctorData: async () => {
+        await Promise.all([
+          get().loadDoctorDashboard(),
+          get().loadPatientList()
+        ]);
+      },
+
+      setDoctorLoading: (loading) => set({ isDoctorLoading: loading }),
+      setDoctorError: (error) => set({ doctorError: error }),
+      
       // 患者信息操作
       setPatientInfo: async (info) => {
         try {
@@ -222,7 +421,7 @@ export const useHalStore = create<HalState>()(
             await savePatientInfo(updatedInfo);
           }
           
-          set({ isLoading: false });
+              set({ isLoading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : '保存患者信息时出错',
@@ -245,7 +444,7 @@ export const useHalStore = create<HalState>()(
           if (currentUser?.id) {
             await saveUserSpecificAnswers(updatedAnswers, currentUser.id);
           } else {
-            await saveAnswer(questionId as any, value as any);
+          await saveAnswer(questionId as any, value as any);
           }
         } catch (error) {
           console.error('保存答案时出错:', error);
@@ -261,7 +460,7 @@ export const useHalStore = create<HalState>()(
           if (currentUser?.id) {
             await saveUserSpecificAnswers(answers, currentUser.id);
           } else {
-            await saveAnswers(answers);
+          await saveAnswers(answers);
           }
         } catch (error) {
           console.error('保存答案时出错:', error);
@@ -282,7 +481,7 @@ export const useHalStore = create<HalState>()(
           if (currentUser?.id) {
             await saveUserSpecificHaemqolAnswers(updatedAnswers, currentUser.id);
           } else {
-            await saveHaemqolAnswer(questionId as any, value as any);
+          await saveHaemqolAnswer(questionId as any, value as any);
           }
         } catch (error) {
           console.error('保存HAEMO-QoL-A答案时出错:', error);
@@ -298,7 +497,7 @@ export const useHalStore = create<HalState>()(
           if (currentUser?.id) {
             await saveUserSpecificHaemqolAnswers(haemqolAnswers, currentUser.id);
           } else {
-            await saveHaemqolAnswers(haemqolAnswers);
+          await saveHaemqolAnswers(haemqolAnswers);
           }
         } catch (error) {
           console.error('保存HAEMO-QoL-A答案时出错:', error);
@@ -394,6 +593,10 @@ export const useHalStore = create<HalState>()(
           set({ isLoading: true, error: null });
           
           const currentUser = get().currentUser;
+          const currentAnswers = get().answers;
+          const currentHaemqolAnswers = get().haemqolAnswers;
+          
+          console.log('🔄 Loading data for user:', currentUser?.id, 'Current HAL answers:', Object.keys(currentAnswers).length);
           
           if (currentUser?.id) {
             // Load user-specific data
@@ -401,26 +604,51 @@ export const useHalStore = create<HalState>()(
             const answers = await loadUserSpecificAnswers(currentUser.id);
             const haemqolAnswers = await loadUserSpecificHaemqolAnswers(currentUser.id);
             
+            console.log('📥 Loaded from storage - HAL:', Object.keys(answers || {}).length, 'HAEMO-QoL-A:', Object.keys(haemqolAnswers || {}).length);
+            
+            // Prevent data loss - only update if we have data or current data is empty
+            const shouldUpdateHAL = Object.keys(answers || {}).length > 0 || Object.keys(currentAnswers).length === 0;
+            const shouldUpdateHaemqol = Object.keys(haemqolAnswers || {}).length > 0 || Object.keys(currentHaemqolAnswers).length === 0;
+            
+            if (!shouldUpdateHAL && Object.keys(currentAnswers).length > 0) {
+              console.log('⚠️ Preserving existing HAL answers - loaded data was empty but current data exists');
+            }
+            
+            if (!shouldUpdateHaemqol && Object.keys(currentHaemqolAnswers).length > 0) {
+              console.log('⚠️ Preserving existing HAEMO-QoL-A answers - loaded data was empty but current data exists');
+            }
+            
             set({
               patientInfo: patientInfo || null,
-              answers: answers || {},
-              haemqolAnswers: haemqolAnswers || {},
+              answers: shouldUpdateHAL ? (answers || {}) : currentAnswers,
+              haemqolAnswers: shouldUpdateHaemqol ? (haemqolAnswers || {}) : currentHaemqolAnswers,
               isLoading: false
             });
+            
+            // Double-check that data is preserved
+            const finalState = get();
+            console.log('✅ Final state - HAL:', Object.keys(finalState.answers).length, 'HAEMO-QoL-A:', Object.keys(finalState.haemqolAnswers).length);
+            
           } else {
             // Fallback to legacy loading
+            console.log('🔄 Using legacy loading (no user ID)');
             const patientInfo = await loadPatientInfo();
             const answers = await loadAnswers();
             const haemqolAnswers = await loadHaemqolAnswers();
             
+            // Apply same data preservation logic for legacy loading
+            const shouldUpdateHAL = Object.keys(answers || {}).length > 0 || Object.keys(currentAnswers).length === 0;
+            const shouldUpdateHaemqol = Object.keys(haemqolAnswers || {}).length > 0 || Object.keys(currentHaemqolAnswers).length === 0;
+            
             set({
               patientInfo: patientInfo || null,
-              answers: answers || {},
-              haemqolAnswers: haemqolAnswers || {},
+              answers: shouldUpdateHAL ? (answers || {}) : currentAnswers,
+              haemqolAnswers: shouldUpdateHaemqol ? (haemqolAnswers || {}) : currentHaemqolAnswers,
               isLoading: false
             });
           }
         } catch (error) {
+          console.error('❌ Error in loadData:', error);
           set({
             error: error instanceof Error ? error.message : '加载数据时出错',
             isLoading: false

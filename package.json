@@ -55,6 +55,8 @@
     "@types/react-dom": "^19",
     "electron": "^27.1.0",
     "electron-builder": "^24.6.4",
+    "eslint": "9.28.0",
+    "eslint-config-next": "15.3.3",
     "sharp": "^0.32.6",
     "tailwindcss": "^4",
     "to-ico": "^1.1.5",

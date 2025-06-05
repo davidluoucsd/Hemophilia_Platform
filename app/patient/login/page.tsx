@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
 import { checkPatientExists, setUserSession } from '../../shared/utils/database';
+import { patientLogin } from '../../shared/utils/patient-sync';
 
 export default function PatientLogin() {
   const router = useRouter();
@@ -98,20 +99,19 @@ export default function PatientLogin() {
   };
 
   // Handle successful login
-  const handleSuccessfulLogin = async (id: string, userName: string, isExistingPatient: boolean) => {
+  const handleSuccessfulLogin = async (id: string, userName: string, shouldCheckExisting: boolean = true) => {
     try {
       // Clear previous user's data to ensure data isolation
       const { clearAllData } = useHalStore.getState();
       await clearAllData();
       
-      // Set user session
-      await setUserSession({
-        user_id: id,
-        role: 'patient',
-        name: userName,
-        login_time: new Date().toISOString(),
-        last_activity: new Date().toISOString()
-      });
+      // Use enhanced patient login that creates database record immediately
+      const loginResult = await patientLogin(id, userName);
+      
+      if (!loginResult.success) {
+        setError('登录失败，请重试');
+        return;
+      }
 
       // Update Zustand store
       setUserRole('patient');
@@ -123,11 +123,11 @@ export default function PatientLogin() {
       setIsAuthenticated(true);
 
       // Navigate based on patient status
-      if (isExistingPatient) {
-        // Existing patient - go to dashboard
+      if (shouldCheckExisting && loginResult.patient && !loginResult.isNewPatient) {
+        // Existing patient with complete data - go to dashboard
         router.push('/patient/dashboard');
       } else {
-        // New patient - go to info page to fill basic information
+        // New patient or incomplete data - go to info page to fill/update basic information
         router.push('/patient/info');
       }
     } catch (error) {

@@ -11,7 +11,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ProgressIndicator from '../../shared/components/ProgressIndicator';
 import Question from '../../shared/components/Question';
 import { useHalStore } from '../../shared/store';
@@ -19,10 +19,22 @@ import { QuestionId, AnswerValue } from '../../shared/types';
 import { QUESTION_SECTIONS } from '../../shared/utils/questions';
 import { checkAllQuestionsAnswered, getUnansweredQuestions } from '../../shared/utils/scoring';
 import { autoFillHalQuestionnaire, generateRandomHalAnswers } from '../../shared/utils/testUtils';
+import { 
+  saveAnswer, 
+  loadAnswers, 
+  saveUserSpecificAnswers, 
+  loadUserSpecificAnswers,
+  loadTaskSpecificAnswers,
+  saveTaskSpecificAnswers,
+  getOrCreatePatientTask
+} from '../../shared/utils/database';
 
 export default function QuestionnairePage() {
   const router = useRouter();
-  const { answers, setAnswer, loadData, setCurrentStep } = useHalStore();
+  const searchParams = useSearchParams();
+  const taskId = searchParams.get('taskId');
+  
+  const { answers, setAnswer, loadData, setCurrentStep, currentUser, setAnswers } = useHalStore();
   const [isLoading, setIsLoading] = useState(true);
   const [unansweredQuestions, setUnansweredQuestions] = useState<number[]>([]);
   const [showValidation, setShowValidation] = useState(false);
@@ -52,6 +64,25 @@ export default function QuestionnairePage() {
     const loadSavedData = async () => {
       try {
         await loadData();
+        
+        // 如果有任务ID，加载任务特定数据
+        if (taskId && currentUser?.id) {
+          console.log(`🔄 Loading task-specific HAL data for task ${taskId}`);
+          try {
+            const taskAnswers = await loadTaskSpecificAnswers(taskId, 'hal', currentUser.id);
+            if (Object.keys(taskAnswers).length > 0) {
+              console.log(`✅ Loaded ${Object.keys(taskAnswers).length} task-specific HAL answers`);
+              setAnswers(taskAnswers as any);
+            } else {
+              console.log('📝 No task-specific data found, starting fresh questionnaire');
+              // Clear any existing answers to start fresh
+              setAnswers({});
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to load task-specific data:', error);
+          }
+        }
+        
         // 检查已完成的部分
         updateCompletedSections();
       } catch (error) {
@@ -62,7 +93,7 @@ export default function QuestionnairePage() {
     };
     
     loadSavedData();
-  }, [loadData]);
+  }, [loadData, taskId, currentUser, setAnswers]);
   
   // 更新已完成的部分
   const updateCompletedSections = () => {
@@ -81,8 +112,20 @@ export default function QuestionnairePage() {
   };
 
   // 处理答案变化
-  const handleAnswerChange = (questionId: string, value: AnswerValue) => {
+  const handleAnswerChange = async (questionId: string, value: AnswerValue) => {
     setAnswer(questionId, value);
+    
+    // 如果有任务ID，保存到任务特定存储
+    if (taskId && currentUser?.id) {
+      try {
+        // 获取当前所有答案（包括刚设置的）
+        const currentAnswers = { ...answers, [questionId]: value };
+        await saveTaskSpecificAnswers(taskId, 'hal', currentAnswers as any, currentUser.id);
+        console.log(`💾 Saved task-specific answer for task ${taskId}: ${questionId}=${value}`);
+      } catch (error) {
+        console.warn('⚠️ Failed to save task-specific answer:', error);
+      }
+    }
     
     // 更新已完成的部分
     setTimeout(() => {
@@ -112,9 +155,9 @@ export default function QuestionnairePage() {
       return;
     }
     
-    // HAL问卷填写完成，返回Dashboard
-    alert('HAL 血友病活动列表填写完成！');
-    router.push('/patient/dashboard');
+    // HAL问卷填写完成，跳转到结果页面进行保存
+    console.log('HAL问卷完成，跳转到结果页面...');
+    router.push('/patient/result');
   };
 
   // 返回上一页
@@ -222,7 +265,7 @@ export default function QuestionnairePage() {
   return (
     <div className="container mx-auto px-4 pb-16">
       <h1 className="page-title">血友病活动列表（HAL）问卷</h1>
-      
+
       {/* 导航按钮 */}
       <div className="flex justify-between mb-6">
         <button 
@@ -244,17 +287,17 @@ export default function QuestionnairePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             随机填充 (测试)
-          </button>
-          
-          <button 
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-all"
-          >
-            继续
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
+        </button>
+        
+        <button 
+          onClick={handleSubmit}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-all"
+        >
+          继续
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
         </div>
       </div>
 

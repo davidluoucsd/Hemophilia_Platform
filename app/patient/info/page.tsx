@@ -14,6 +14,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
 import { getCurrentUserSession, savePatientBasicInfo, getMedicalInfo } from '../../shared/utils/database';
+import { updatePatientBasicInfo, getPatientInfo } from '../../shared/utils/patient-sync';
 import { Patient, MedicalInfo } from '../../shared/types/database';
 import { generateRandomPatientBasicInfo } from '../../shared/utils/testUtils';
 
@@ -52,8 +53,18 @@ export default function PatientInfoPage() {
           return;
         }
 
-        // Pre-fill with current user data if available
-        if (currentUser) {
+        // Load existing patient data from database
+        const patientResult = await getPatientInfo(currentUser.id);
+        if (patientResult.success && patientResult.patient) {
+          const patient = patientResult.patient;
+          setFormData({
+            name: patient.name || '',
+            age: patient.age > 0 ? patient.age.toString() : '',
+            weight: patient.weight > 0 ? patient.weight.toString() : '',
+            height: patient.height > 0 ? patient.height.toString() : ''
+          });
+        } else {
+          // Fallback to current user data
           setFormData({
             name: currentUser.name || '',
             age: '',
@@ -147,23 +158,22 @@ export default function PatientInfoPage() {
 
     setIsSaving(true);
     try {
-      // Save basic patient info
-      const patientData: Omit<Patient, 'created_at' | 'updated_at'> = {
-        id: currentUser.id,
+      // Update patient basic info using the sync utility
+      const updates = {
         name: formData.name.trim(),
         age: parseInt(formData.age),
         weight: parseFloat(formData.weight),
-        height: parseFloat(formData.height),
-        doctor_id: medicalInfo?.doctor_id
+        height: parseFloat(formData.height)
       };
 
-      const result = await savePatientBasicInfo(patientData);
+      const result = await updatePatientBasicInfo(currentUser.id, updates);
       
       if (result.success) {
+        console.log('Patient info updated successfully:', result.patient);
         // Navigate to dashboard
         router.push('/patient/dashboard');
       } else {
-        setErrors({ general: result.error || '保存失败，请重试' });
+        setErrors({ general: '保存失败，请重试' });
       }
     } catch (error) {
       console.error('Error saving patient info:', error);

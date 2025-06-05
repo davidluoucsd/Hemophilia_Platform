@@ -13,6 +13,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
+import { setUserSession } from '../../shared/utils/database';
 
 const DoctorLoginPage: React.FC = () => {
   const router = useRouter();
@@ -77,12 +78,24 @@ const DoctorLoginPage: React.FC = () => {
       // 模拟登录验证
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // 设置登录状态
-      login('doctor', {
+      // 创建医生用户信息
+      const doctorUser = {
         id: `doctor_${Date.now()}`,
         name: formData.doctorName,
         role: 'doctor'
+      };
+      
+      // 设置用户session
+      await setUserSession({
+        user_id: doctorUser.id,
+        role: 'doctor',
+        name: doctorUser.name,
+        login_time: new Date().toISOString(),
+        last_activity: new Date().toISOString()
       });
+      
+      // 设置登录状态
+      login('doctor', doctorUser);
       
       // 跳转到医生端Dashboard
       router.push('/doctor/dashboard');

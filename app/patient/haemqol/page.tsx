@@ -11,15 +11,23 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
 import { HAEMQOL_SECTIONS, formatHaemqolAnswerText } from './questions';
 import { checkAllHaemqolQuestionsAnswered, getUnansweredHaemqolQuestions } from './scoring';
 import { HaemqolQuestionId, HaemqolAnswerValue } from '../../shared/types';
 import { generateRandomHaemqolAnswers } from '../../shared/utils/testUtils';
+import { 
+  loadTaskSpecificAnswers, 
+  saveTaskSpecificAnswers,
+  getOrCreatePatientTask
+} from '../../shared/utils/database';
 
 const HaemQoLPage: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const taskId = searchParams.get('taskId');
+  
   const { 
     haemqolAnswers, 
     setHaemqolAnswer, 
@@ -27,7 +35,8 @@ const HaemQoLPage: React.FC = () => {
     isLoading, 
     loadData,
     currentUser,
-    patientInfo
+    patientInfo,
+    setHaemqolAnswers
   } = useHalStore();
   
   const [activeSection, setActiveSection] = useState<number>(0);
@@ -76,6 +85,24 @@ const HaemQoLPage: React.FC = () => {
           await loadData();
         }
         
+        // 如果有任务ID，加载任务特定数据
+        if (taskId && currentUser?.id) {
+          console.log(`🔄 Loading task-specific HAEMO-QoL-A data for task ${taskId}`);
+          try {
+            const taskAnswers = await loadTaskSpecificAnswers(taskId, 'haemqol', currentUser.id);
+            if (Object.keys(taskAnswers).length > 0) {
+              console.log(`✅ Loaded ${Object.keys(taskAnswers).length} task-specific HAEMO-QoL-A answers`);
+              setHaemqolAnswers(taskAnswers as any);
+            } else {
+              console.log('📝 No task-specific data found, starting fresh questionnaire');
+              // Clear any existing answers to start fresh
+              setHaemqolAnswers({});
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to load task-specific data:', error);
+          }
+        }
+        
         if (isActive) {
           // 设置当前步骤
           setCurrentStep('haemqol');
@@ -95,7 +122,7 @@ const HaemQoLPage: React.FC = () => {
     return () => {
       isActive = false;
     };
-  }, [isMounted, isInitialized, currentUser, patientInfo, loadData, router, setCurrentStep]);
+  }, [isMounted, isInitialized, currentUser, patientInfo, loadData, router, setCurrentStep, taskId, setHaemqolAnswers]);
   
   // 单独处理未回答问题的检查和完成状态
   useEffect(() => {
@@ -135,9 +162,9 @@ const HaemQoLPage: React.FC = () => {
         }, 2000);
       }
     } else {
-      // 所有问题已回答，返回Dashboard
-      alert('HAEMO-QoL-A 生存质量量表填写完成！');
-      router.push('/patient/dashboard');
+      // 所有问题已回答，跳转到结果页面进行保存
+      console.log('HAEMO-QoL-A问卷完成，跳转到结果页面...');
+      router.push('/patient/result');
     }
   };
   
@@ -147,9 +174,21 @@ const HaemQoLPage: React.FC = () => {
   };
   
   // 处理答案变更
-  const handleAnswerChange = (questionId: number, value: HaemqolAnswerValue) => {
+  const handleAnswerChange = async (questionId: number, value: HaemqolAnswerValue) => {
     const key = `hq${questionId}` as HaemqolQuestionId;
     setHaemqolAnswer(key, value);
+    
+    // 如果有任务ID，保存到任务特定存储
+    if (taskId && currentUser?.id) {
+      try {
+        // 获取当前所有答案（包括刚设置的）
+        const currentAnswers = { ...haemqolAnswers, [key]: value };
+        await saveTaskSpecificAnswers(taskId, 'haemqol', currentAnswers as any, currentUser.id);
+        console.log(`💾 Saved task-specific answer for task ${taskId}: ${key}=${value}`);
+      } catch (error) {
+        console.warn('⚠️ Failed to save task-specific answer:', error);
+      }
+    }
     
     // 从未回答列表中移除已回答的问题
     if (unansweredQuestions.includes(questionId)) {
@@ -318,8 +357,8 @@ const HaemQoLPage: React.FC = () => {
               <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
           </button>
-        </div>
-      </div>
+            </div>
+          </div>
 
       {/* 验证提示 */}
       {showValidation && unansweredQuestions.length > 0 && (
@@ -329,24 +368,24 @@ const HaemQoLPage: React.FC = () => {
           <p className="text-sm mt-1">共有 {unansweredQuestions.length} 个问题未回答</p>
         </div>
       )}
-      
-      {/* 问卷说明 */}
-      <div className="mb-6 bg-blue-50 p-4 rounded-lg">
-        <h2 className="font-semibold text-blue-700 mb-2">问卷说明</h2>
-        <p className="text-gray-700 text-sm">
-          该问卷旨在了解血友病及其治疗如何影响您的生活质量。请回答所有问题，这些问题没有正确或错误的答案。
-          每个问题使用0-5分制评价，其中0表示"从来没有"，5表示"总是"。请为每个问题选择一个最能代表您情况的答案。
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {[0, 1, 2, 3, 4, 5].map(value => (
-            <div key={value} className="inline-flex items-center bg-white px-2 py-1 rounded border border-gray-200">
-              <span className="font-semibold mr-1">{value}</span>
-              <span className="text-xs text-gray-600">{formatHaemqolAnswerText(value.toString() as HaemqolAnswerValue)}</span>
+          
+          {/* 问卷说明 */}
+          <div className="mb-6 bg-blue-50 p-4 rounded-lg">
+            <h2 className="font-semibold text-blue-700 mb-2">问卷说明</h2>
+            <p className="text-gray-700 text-sm">
+              该问卷旨在了解血友病及其治疗如何影响您的生活质量。请回答所有问题，这些问题没有正确或错误的答案。
+              每个问题使用0-5分制评价，其中0表示"从来没有"，5表示"总是"。请为每个问题选择一个最能代表您情况的答案。
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[0, 1, 2, 3, 4, 5].map(value => (
+                <div key={value} className="inline-flex items-center bg-white px-2 py-1 rounded border border-gray-200">
+                  <span className="font-semibold mr-1">{value}</span>
+                  <span className="text-xs text-gray-600">{formatHaemqolAnswerText(value.toString() as HaemqolAnswerValue)}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
-
+          </div>
+          
       {/* 问卷布局：分为侧边导航和内容区 */}
       <div className={`form-section flex ${isMobileView ? 'flex-col' : 'flex-row'}`}>
         {/* 部分导航栏 - 较大屏幕显示在左侧，移动设备显示在顶部 */}
@@ -409,7 +448,7 @@ const HaemQoLPage: React.FC = () => {
             </div>
           )}
         </div>
-        
+          
         {/* 问卷内容区域 */}
         <div className="flex-1">
           <div className="space-y-12">
@@ -428,64 +467,64 @@ const HaemQoLPage: React.FC = () => {
                   {section.description && (
                     <p className="text-sm text-gray-600 mt-2 ml-11">{section.description}</p>
                   )}
-                </div>
-
+            </div>
+            
                 <div className="landscape-optimize">
                   {section.questions.map((question) => {
-                    const isUnanswered = isQuestionUnanswered(question.id);
-                    
-                    return (
-                      <div
-                        key={question.id}
-                        id={`question-${question.id}`}
-                        className={`mb-6 p-4 rounded-lg transition-all animate-slide-up ${
-                          isUnanswered 
-                            ? 'bg-red-50 border border-red-200' 
-                            : 'bg-gray-50 hover:bg-gray-100'
-                        }`}
-                        style={{ animationDelay: `${(question.id % 10) * 50}ms` }}
-                      >
-                        <div className="flex items-start">
-                          <div className="bg-blue-100 text-blue-800 font-semibold px-2 py-1 rounded-full mr-3 text-sm">
-                            {question.id}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium">{question.title}</p>
-                            {isUnanswered && (
-                              <p className="text-red-500 text-sm mt-1">请回答此问题</p>
-                            )}
-                            {renderAnswerOptions(question.id)}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                const isUnanswered = isQuestionUnanswered(question.id);
                 
+                return (
+                  <div 
+                    key={question.id}
+                    id={`question-${question.id}`}
+                        className={`mb-6 p-4 rounded-lg transition-all animate-slide-up ${
+                      isUnanswered 
+                        ? 'bg-red-50 border border-red-200'
+                        : 'bg-gray-50 hover:bg-gray-100'
+                    }`}
+                        style={{ animationDelay: `${(question.id % 10) * 50}ms` }}
+                  >
+                    <div className="flex items-start">
+                      <div className="bg-blue-100 text-blue-800 font-semibold px-2 py-1 rounded-full mr-3 text-sm">
+                        {question.id}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">{question.title}</p>
+                        {isUnanswered && (
+                          <p className="text-red-500 text-sm mt-1">请回答此问题</p>
+                        )}
+                        {renderAnswerOptions(question.id)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+          
                 {/* 每个部分底部的导航按钮 */}
                 <div className="flex justify-between mt-8 pt-4 border-t border-gray-200">
-                  <button 
+            <button
                     type="button"
                     onClick={handlePrevSection}
                     className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                    </svg>
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
                     {sectionIndex === 0 ? '返回任务中心' : '上一部分'}
-                  </button>
-                  
-                  <button 
+            </button>
+            
+                <button
                     type="button"
                     onClick={handleNextSection}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-                  >
+              >
                     {sectionIndex === HAEMQOL_SECTIONS.length - 1 ? '完成问卷' : '下一部分'}
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
               </div>
             ))}
           </div>

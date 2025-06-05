@@ -16,6 +16,24 @@ import { useHalStore } from '../../shared/store';
 import { QUESTION_SECTIONS } from '../../shared/utils/questions';
 import { HAEMQOL_SECTIONS, formatHaemqolAnswerText } from '../../patient/haemqol/questions';
 import { QuestionId, HaemqolQuestionId } from '../../shared/types';
+import { 
+  submitQuestionnaireResponse, 
+  getCurrentTask, 
+  assignQuestionnaire,
+  getPatientAssignedTasks,
+  getPatientQuestionnaireHistory,
+  saveTaskSpecificAnswers,
+  getPatientDashboardData, 
+  clearUserSession,
+  loadUserSpecificAnswers,
+  loadUserSpecificHaemqolAnswers,
+  loadUserSpecificPatientInfo,
+  performDatabaseMaintenance,
+  validateUserData,
+  loadTaskSpecificAnswers,
+  getTaskAnswersHistory,
+  getOrCreatePatientTask
+} from '../../shared/utils/database';
 
 // 答案格式化函数
 const formatHalAnswerText = (value: string): string => {
@@ -37,8 +55,8 @@ export default function ResultPage() {
     answers, 
     haemqolAnswers, 
     patientInfo, 
-    assessmentResult, 
-    calculateResults, 
+    assessmentResult,
+    calculateResults,
     loadData,
     currentUser 
   } = useHalStore();
@@ -46,17 +64,33 @@ export default function ResultPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'summary' | 'hal-details' | 'haemqol-details'>('summary');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
-
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  
   useEffect(() => {
     const initializeData = async () => {
+      // Prevent multiple initializations
+      if (hasInitialized) return;
+      
+      console.log('🔍 initializeData called');
       try {
         if (!currentUser) {
+          console.log('❌ No currentUser, redirecting to login');
           router.push('/patient/login');
           return;
         }
-
+        
+        console.log('🔍 Loading data...');
         await loadData();
+        console.log('🔍 Calculating results...');
         calculateResults();
+        
+        setHasInitialized(true);
+        
+        // Disable auto-save to prevent duplicates - users can manually save
+        console.log('🔍 Auto-save disabled, users can use manual save button');
+        
       } catch (error) {
         console.error('加载数据失败:', error);
       } finally {
@@ -64,14 +98,324 @@ export default function ResultPage() {
       }
     };
 
-    initializeData();
-  }, [currentUser, loadData, calculateResults, router]);
+    // Only run once when currentUser is available
+    if (currentUser && !hasInitialized) {
+      initializeData();
+    }
+  }, [currentUser]); // Simplified dependencies to prevent multiple runs
 
+  // Check if auto-save should happen
+  const checkShouldAutoSave = async () => {
+    if (!currentUser) return false;
+    
+    const halAnswersCount = Object.keys(answers).length;
+    const haemqolAnswersCount = Object.keys(haemqolAnswers).length;
+    
+    // Only auto-save if there are actually answers and questionnaires are complete
+    if (halAnswersCount === 0 && haemqolAnswersCount === 0) {
+      return false;
+    }
+    
+    // Check if already saved recently (prevent duplicate saves)
+    const lastSaveKey = `last_save_${currentUser.id}`;
+    const lastSave = sessionStorage.getItem(lastSaveKey);
+    if (lastSave) {
+      const lastSaveTime = new Date(lastSave);
+      const timeDiff = Date.now() - lastSaveTime.getTime();
+      // Don't auto-save if saved within last 5 minutes
+      if (timeDiff < 5 * 60 * 1000) {
+        console.log('⏭️ Skipping auto-save, recently saved');
+        return false;
+      }
+    }
+    
+    // Check if we already have responses saved in database for current answers
+    try {
+      const historyResult = await getPatientQuestionnaireHistory(currentUser.id);
+      if (historyResult.success && historyResult.data) {
+        const existingResponses = historyResult.data;
+        
+        // Check if we have HAL responses that match current answers
+        if (halAnswersCount > 0) {
+          const existingHalResponse = existingResponses.find(r => 
+            r.questionnaire_type === 'hal' && 
+            r.answers && 
+            Object.keys(r.answers).length >= halAnswersCount - 5 // Allow some tolerance
+          );
+          if (existingHalResponse) {
+            console.log('⏭️ HAL responses already exist in database, skipping auto-save');
+          }
+        }
+        
+        // Check if we have HAEMO-QoL-A responses that match current answers
+        if (haemqolAnswersCount > 0) {
+          const existingHaemqolResponse = existingResponses.find(r => 
+            r.questionnaire_type === 'haemqol' && 
+            r.answers && 
+            Object.keys(r.answers).length >= haemqolAnswersCount - 5 // Allow some tolerance
+          );
+          if (existingHaemqolResponse) {
+            console.log('⏭️ HAEMO-QoL-A responses already exist in database, skipping auto-save');
+            return false;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to check existing responses:', error);
+      // Continue with auto-save if check fails
+    }
+    
+    return true;
+  };
+
+  // Save questionnaire results to database
+  const saveResultsToDatabase = async () => {
+    console.log('🔍 saveResultsToDatabase called');
+    console.log('🔍 currentUser:', currentUser);
+    
+    if (!currentUser) {
+      console.log('❌ No currentUser, returning early');
+      return;
+    }
+    
+    setIsSaving(true);
+    setSaveStatus('saving');
+    
+    try {
+      const halCompletion = halCompletionRate();
+      const haemqolCompletion = haemqolCompletionRate();
+
+      console.log('🔍 Saving results to database:', { 
+        patientId: currentUser.id, 
+        halCompletion, 
+        haemqolCompletion,
+        halAnswersCount: Object.keys(answers).length,
+        haemqolAnswersCount: Object.keys(haemqolAnswers).length
+      });
+
+      // Mark save time to prevent duplicates
+      const lastSaveKey = `last_save_${currentUser.id}`;
+      sessionStorage.setItem(lastSaveKey, new Date().toISOString());
+
+      let saveSuccessful = false;
+
+      // Save HAL results if any answers exist
+      console.log('🔍 Checking HAL answers:', Object.keys(answers).length);
+      if (Object.keys(answers).length > 0) {
+        console.log('✅ HAL has answers, proceeding to save...');
+        try {
+          if (halCompletion >= 80) {
+            console.log('📝 HAL questionnaire complete, getting or creating task...');
+            const taskResult = await getOrCreatePatientTask(currentUser.id, 'hal', 'patient_self');
+            
+            if (taskResult.success && taskResult.data) {
+              // Save task-specific answers for this questionnaire instance
+              await saveTaskSpecificAnswers(
+                taskResult.data.id.toString(), 
+                'hal', 
+                answers, 
+                currentUser.id
+              );
+              
+              const halScores = assessmentResult ? {
+                ...assessmentResult.domainScores,
+                sumScore: assessmentResult.sumScore
+              } : {};
+              
+              console.log('Submitting HAL response:', {
+                taskId: taskResult.data.id,
+                scores: halScores
+              });
+              
+              const submitResult = await submitQuestionnaireResponse(
+                taskResult.data.id.toString(),
+                currentUser.id,
+                'hal',
+                answers,
+                halScores,
+                assessmentResult?.sumScore || undefined
+              );
+
+              if (submitResult.success) {
+                console.log('✅ HAL results saved successfully with independent task ID:', taskResult.data.id);
+                saveSuccessful = true;
+              } else {
+                console.error('Failed to save HAL results:', submitResult.error);
+                setSaveStatus('error');
+              }
+            } else {
+              console.error('Failed to get or create HAL task:', taskResult.error);
+            }
+          } else {
+            console.log('HAL questionnaire not complete enough to save (completion:', halCompletion, '%)');
+          }
+        } catch (error) {
+          console.error('Error saving HAL results:', error);
+        }
+      }
+      
+      // Save HAEMO-QoL-A results if any answers exist
+      console.log('🔍 Checking HAEMO-QoL-A answers:', Object.keys(haemqolAnswers).length);
+      if (Object.keys(haemqolAnswers).length > 0) {
+        console.log('✅ HAEMO-QoL-A has answers, proceeding to save...');
+        try {
+          if (haemqolCompletion >= 80) {
+            console.log('📝 HAEMO-QoL-A questionnaire complete, getting or creating task...');
+            const taskResult = await getOrCreatePatientTask(currentUser.id, 'haemqol', 'patient_self');
+            
+            if (taskResult.success && taskResult.data) {
+              // Save task-specific answers for this questionnaire instance
+              await saveTaskSpecificAnswers(
+                taskResult.data.id.toString(), 
+                'haemqol', 
+                haemqolAnswers, 
+                currentUser.id
+              );
+              
+              // Calculate HAEMO-QoL-A scores
+              const haemqolScores = calculateHaemqolScores();
+              
+              console.log('Submitting HAEMO-QoL-A response:', {
+                taskId: taskResult.data.id,
+                scores: haemqolScores
+              });
+              
+              const submitResult = await submitQuestionnaireResponse(
+                taskResult.data.id.toString(),
+                currentUser.id,
+                'haemqol',
+                haemqolAnswers,
+                haemqolScores,
+                haemqolScores.totalScore
+              );
+              
+              if (submitResult.success) {
+                console.log('✅ HAEMO-QoL-A results saved successfully with independent task ID:', taskResult.data.id);
+                saveSuccessful = true;
+              } else {
+                console.error('Failed to save HAEMO-QoL-A results:', submitResult.error);
+                setSaveStatus('error');
+              }
+            } else {
+              console.error('Failed to get or create HAEMO-QoL-A task:', taskResult.error);
+            }
+          } else {
+            console.log('HAEMO-QoL-A questionnaire not complete enough to save (completion:', haemqolCompletion, '%)');
+          }
+        } catch (error) {
+          console.error('Error saving HAEMO-QoL-A results:', error);
+        }
+      }
+
+      if (saveSuccessful) {
+        setSaveStatus('saved');
+        console.log('✅ All questionnaire results saved successfully');
+      } else if (!saveSuccessful && (Object.keys(answers).length > 0 || Object.keys(haemqolAnswers).length > 0)) {
+        // Only set error if we had data to save but failed
+        setSaveStatus('error');
+        console.log('❌ Failed to save some questionnaire results');
+      }
+
+    } catch (error) {
+      console.error('Error in saveResultsToDatabase:', error);
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Calculate HAEMO-QoL-A scores
+  const calculateHaemqolScores = () => {
+    // 按照医生端期望的维度计算分数
+    const dimensions = {
+      physical_health: Array.from({length: 9}, (_, i) => `hq${i + 1}`),      // hq1-hq9
+      feelings_emotions: Array.from({length: 11}, (_, i) => `hq${i + 10}`),  // hq10-hq20
+      view_of_others: Array.from({length: 9}, (_, i) => `hq${i + 21}`),     // hq21-hq29
+      sports_school: Array.from({length: 12}, (_, i) => `hq${i + 30}`)      // hq30-hq41
+    };
+
+    const domainScores: Record<string, any> = {};
+    let totalScore = 0;
+    let answeredQuestions = 0;
+
+    Object.entries(dimensions).forEach(([dimension, questions]) => {
+      let dimensionScore = 0;
+      let dimensionAnswers = 0;
+      
+             questions.forEach(q => {
+         const answer = haemqolAnswers[q as HaemqolQuestionId];
+         if (answer) {
+           const score = parseInt(answer);
+           if (!isNaN(score)) {
+             dimensionScore += score;
+             dimensionAnswers++;
+             answeredQuestions++;
+           }
+         }
+       });
+      
+      domainScores[dimension] = {
+        score: dimensionScore,
+        possible: dimensionAnswers * 5,  // 每题最高5分
+        percentage: dimensionAnswers > 0 ? Math.round((dimensionScore / (dimensionAnswers * 5)) * 100) : 0
+      };
+      
+      totalScore += dimensionScore;
+    });
+
+    return {
+      domainScores,
+      totalScore: totalScore,
+      total_possible: answeredQuestions * 5,
+      total_percentage: answeredQuestions > 0 ? Math.round((totalScore / (answeredQuestions * 5)) * 100) : 0
+    };
+  };
+  
   // 返回dashboard
   const handleBack = () => {
     router.push('/patient/dashboard');
   };
 
+  // Debug function to check task status
+  const handleDebugTasks = async () => {
+    console.log('🔍 DEBUG: Checking task status in database for user:', currentUser?.id);
+    
+    try {
+      // Get task data using existing functions
+      const tasksResult = await getPatientAssignedTasks(currentUser?.id || '');
+      if (tasksResult.success && tasksResult.data) {
+        console.log('📋 User tasks in database:', tasksResult.data);
+        tasksResult.data.forEach((task: any, index: number) => {
+          console.log(`Task ${index + 1}:`, {
+            id: task.id,
+            type: task.questionnaire_id,
+            status: task.status,
+            progress: task.progress,
+            completed_at: task.completed_at,
+            created_at: task.created_at
+          });
+        });
+      }
+      
+      // Get response data
+      const responsesResult = await getPatientQuestionnaireHistory(currentUser?.id || '');
+      if (responsesResult.success && responsesResult.data) {
+        console.log('📝 User responses in database:', responsesResult.data);
+        responsesResult.data.forEach((response: any, index: number) => {
+          console.log(`Response ${index + 1}:`, {
+            id: response.id,
+            task_id: response.task_id,
+            type: response.questionnaire_type,
+            total_score: response.total_score,
+            completed_at: response.completed_at
+          });
+        });
+      }
+    } catch (error) {
+      console.error('❌ Debug error:', error);
+    }
+  };
+  
   // 切换section展开状态
   const toggleSection = (sectionKey: string) => {
     setExpandedSections(prev => ({
@@ -79,7 +423,7 @@ export default function ResultPage() {
       [sectionKey]: !prev[sectionKey]
     }));
   };
-
+  
   // 计算完成度
   const halCompletionRate = () => {
     const totalQuestions = QUESTION_SECTIONS.reduce((sum, section) => sum + section.questions.length, 0);
@@ -92,7 +436,7 @@ export default function ResultPage() {
     const answeredQuestions = Object.keys(haemqolAnswers).filter(key => haemqolAnswers[key as HaemqolQuestionId]).length;
     return Math.round((answeredQuestions / totalQuestions) * 100);
   };
-
+  
   if (isLoading) {
     return (
       <div className="container mx-auto p-4 flex justify-center items-center min-h-screen">
@@ -103,7 +447,7 @@ export default function ResultPage() {
       </div>
     );
   }
-
+  
   return (
     <div className="container mx-auto px-4 py-8">
       {/* 页面标题 */}
@@ -113,7 +457,7 @@ export default function ResultPage() {
       </div>
 
       {/* 返回按钮 */}
-      <div className="mb-6">
+      <div className="mb-6 flex justify-between items-center">
         <button 
           onClick={handleBack}
           className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all"
@@ -123,8 +467,75 @@ export default function ResultPage() {
           </svg>
           返回任务中心
         </button>
-      </div>
 
+        <div className="flex items-center gap-3">
+          {/* 手动保存按钮 */}
+          <button
+            onClick={saveResultsToDatabase}
+            disabled={isSaving || Object.keys(answers).length === 0 && Object.keys(haemqolAnswers).length === 0}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isSaving ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                保存中...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                保存结果
+              </>
+            )}
+          </button>
+
+          {/* 调试按钮 */}
+          <button
+            onClick={handleDebugTasks}
+            className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center gap-2 text-sm"
+            title="查看数据库状态"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            调试
+          </button>
+
+          {/* 保存状态指示器 */}
+          {saveStatus && (
+            <div className={`px-3 py-1 rounded-full text-sm flex items-center gap-2 ${
+              saveStatus === 'saved' ? 'bg-green-100 text-green-800' :
+              saveStatus === 'saving' ? 'bg-blue-100 text-blue-800' :
+              'bg-red-100 text-red-800'
+            }`}>
+              {saveStatus === 'saved' && (
+                <>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  已保存
+                </>
+              )}
+              {saveStatus === 'saving' && (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  保存中...
+                </>
+              )}
+              {saveStatus === 'error' && (
+                <>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  保存失败
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+          
       {/* 标签页导航 */}
       <div className="mb-8">
         <div className="border-b border-gray-200">
@@ -161,7 +572,7 @@ export default function ResultPage() {
             </button>
           </nav>
         </div>
-      </div>
+              </div>
 
       {/* 评估总结标签页 */}
       {activeTab === 'summary' && (
@@ -178,15 +589,15 @@ export default function ResultPage() {
                 <div>
                   <span className="text-gray-600">年龄:</span>
                   <span className="ml-2 font-medium">{patientInfo.age} 岁</span>
-                </div>
+              </div>
                 <div>
                   <span className="text-gray-600">评估日期:</span>
                   <span className="ml-2 font-medium">{patientInfo.evaluationDate || '未填写'}</span>
-                </div>
+              </div>
               </div>
             </div>
           )}
-
+          
           {/* 完成度统计 */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">问卷完成度</h3>
@@ -195,7 +606,7 @@ export default function ResultPage() {
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium text-blue-900">HAL 血友病活动列表</h4>
                   <span className="text-blue-600 font-semibold">{halCompletionRate()}%</span>
-                </div>
+                  </div>
                 <div className="w-full bg-blue-200 rounded-full h-2">
                   <div 
                     className="bg-blue-600 h-2 rounded-full"
@@ -213,7 +624,7 @@ export default function ResultPage() {
                   <span className="text-green-600 font-semibold">{haemqolCompletionRate()}%</span>
                 </div>
                 <div className="w-full bg-green-200 rounded-full h-2">
-                  <div 
+                    <div 
                     className="bg-green-600 h-2 rounded-full"
                     style={{ width: `${haemqolCompletionRate()}%` }}
                   ></div>
@@ -221,10 +632,10 @@ export default function ResultPage() {
                 <p className="text-green-700 text-sm mt-2">
                   已完成 {Object.keys(haemqolAnswers).filter(key => haemqolAnswers[key as HaemqolQuestionId]).length} / {HAEMQOL_SECTIONS.reduce((sum, section) => sum + section.questions.length, 0)} 题
                 </p>
-              </div>
-            </div>
-          </div>
-
+                  </div>
+                  </div>
+                </div>
+                
           {/* 评估结果（如果有的话）- 仅医生端可见 */}
           {assessmentResult && currentUser?.role === 'doctor' && (
             <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -235,13 +646,13 @@ export default function ResultPage() {
                     <div className="text-sm text-gray-600">{domain}</div>
                     <div className="text-lg font-semibold">
                       {score !== null && typeof score === 'number' && !isNaN(score) ? score.toFixed(1) : 'N/A'}
-                    </div>
+                  </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-
+          
           {/* 患者端提示信息 */}
           {currentUser?.role === 'patient' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
@@ -259,9 +670,9 @@ export default function ResultPage() {
               </div>
             </div>
           )}
-        </div>
-      )}
-
+              </div>
+            )}
+            
       {/* HAL详细回答标签页 */}
       {activeTab === 'hal-details' && (
         <div className="space-y-6">
@@ -298,11 +709,11 @@ export default function ResultPage() {
                       {section.questions.map((question) => {
                         const questionId = `q${question.id}` as QuestionId;
                         const answer = answers[questionId];
-                        
-                        return (
+                  
+                  return (
                           <div key={question.id} className="flex justify-between items-start py-3 border-b border-gray-100 last:border-b-0">
                             <div className="flex-1 mr-4">
-                              <div className="flex items-start">
+                      <div className="flex items-start">
                                 <span className="bg-blue-100 text-blue-800 font-semibold px-2 py-1 rounded text-sm mr-3">
                                   Q{question.id}
                                 </span>
@@ -317,19 +728,19 @@ export default function ResultPage() {
                               ) : (
                                 <div className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
                                   未回答
-                                </div>
+                          </div>
                               )}
-                            </div>
+                          </div>
                           </div>
                         );
                       })}
-                    </div>
-                  </div>
+                        </div>
+                      </div>
                 )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
       )}
 
       {/* HAEMO-QoL-A详细回答标签页 */}
@@ -368,8 +779,8 @@ export default function ResultPage() {
                       {section.questions.map((question) => {
                         const questionId = `hq${question.id}` as HaemqolQuestionId;
                         const answer = haemqolAnswers[questionId];
-                        
-                        return (
+                  
+                  return (
                           <div key={question.id} className="flex justify-between items-start py-3 border-b border-gray-100 last:border-b-0">
                             <div className="flex-1 mr-4">
                               <div className="flex items-start">
@@ -383,51 +794,51 @@ export default function ResultPage() {
                               {answer ? (
                                 <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                                   {answer} - {formatHaemqolAnswerText(answer)}
-                                </div>
+                      </div>
                               ) : (
                                 <div className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
                                   未回答
-                                </div>
+                      </div>
                               )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                      </div>
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
                 )}
               </div>
             );
           })}
-        </div>
+          </div>
       )}
-
+          
       {/* 底部操作按钮 */}
       <div className="mt-8 flex justify-between">
-        <button 
+              <button
           onClick={handleBack}
           className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 shadow-sm"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
           返回任务中心
-        </button>
-        
-        <button 
+                    </button>
+                    
+                    <button
           onClick={() => window.print()}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm"
-        >
+                    >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-          </svg>
+                      </svg>
           打印结果
-        </button>
-      </div>
-      
+                    </button>
+                </div>
+                
       <footer className="mt-10 text-center text-sm text-gray-500">
         <p>© 2024 罗骏哲（Junzhe Luo）. 版权所有.</p>
-      </footer>
+        </footer>
     </div>
   );
 } 

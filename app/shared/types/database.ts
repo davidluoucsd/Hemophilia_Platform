@@ -80,8 +80,10 @@ export interface Response {
   id: string;
   task_id: string;
   patient_id: string; // 冗余字段，便于查询
+  questionnaire_type: 'haemqol' | 'hal'; // 问卷类型
   answers: any; // 问卷答案JSON
   scores?: any; // 评分结果JSON
+  total_score?: number; // 总分
   analysis?: any; // 分析结果JSON
   completed_at?: string;
   is_visible_to_patient: boolean; // 患者是否可见评分结果
