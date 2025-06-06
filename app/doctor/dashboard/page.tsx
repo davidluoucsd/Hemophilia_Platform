@@ -1,7 +1,7 @@
 /**
  * HAL问卷系统 - 医生端Dashboard (Enhanced with Real Data)
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -13,6 +13,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
+import { useTranslation } from '../../shared/hooks/useTranslation';
+import PageWrapper from '../../shared/components/PageWrapper';
 import { 
   getAllPatients, 
   getPatientQuestionnaireHistory,
@@ -25,6 +27,7 @@ import {
 
 const DoctorDashboardPage: React.FC = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const { 
     currentUser, 
     logout, 
@@ -67,7 +70,7 @@ const DoctorDashboardPage: React.FC = () => {
       // Get all patients
       const patientsResult = await getAllPatients();
       if (!patientsResult.success || !patientsResult.data) {
-        alert('获取患者列表失败');
+        alert(t('doctor.getPatientListFailed'));
         return;
       }
 
@@ -117,10 +120,10 @@ const DoctorDashboardPage: React.FC = () => {
         document.body.removeChild(link);
       }
 
-      alert('数据导出成功！');
+      alert(t('doctor.exportSuccess'));
     } catch (error) {
       console.error('Batch export error:', error);
-      alert('导出失败，请重试');
+      alert(t('doctor.exportFailed'));
     } finally {
       setIsExporting(false);
     }
@@ -138,29 +141,32 @@ const DoctorDashboardPage: React.FC = () => {
 
   if (!currentUser || currentUser.role !== 'doctor') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Access denied. Doctor login required.</p>
-          <button
-            onClick={() => router.push('/doctor/login')}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Go to Doctor Login
-          </button>
+      <PageWrapper>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">{t('doctor.accessDenied')}</p>
+            <button
+              onClick={() => router.push('/doctor/login')}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              {t('doctor.goToDoctorLogin')}
+            </button>
+          </div>
         </div>
-      </div>
+      </PageWrapper>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageWrapper>
+      <div className="min-h-screen bg-gray-50">
       {/* 顶部导航栏 */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <h1 className="text-xl font-semibold text-gray-900">
-                HAL问卷系统 - 医生端
+                {t('doctor.systemTitle')}
               </h1>
             </div>
             <div className="flex items-center space-x-4">
@@ -172,14 +178,14 @@ const DoctorDashboardPage: React.FC = () => {
                 {isExporting ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    导出中...
+                    {t('doctor.exporting')}
                   </>
                 ) : (
                   <>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    批量导出
+                    {t('doctor.batchExport')}
                   </>
                 )}
               </button>
@@ -188,16 +194,16 @@ const DoctorDashboardPage: React.FC = () => {
                 disabled={refreshing || isDoctorLoading}
                 className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50"
               >
-                {refreshing || isDoctorLoading ? '刷新中...' : '刷新数据'}
+                {refreshing || isDoctorLoading ? t('doctor.refreshing') : t('doctor.refreshData')}
               </button>
               <span className="text-sm text-gray-700">
-                欢迎，{currentUser?.name || '医生'}
+                {t('doctor.welcome')}，{currentUser?.name || t('doctor.dashboard')}
               </span>
               <button
                 onClick={handleLogout}
                 className="px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
               >
-                注销
+                {t('navigation.logout')}
               </button>
             </div>
           </div>
@@ -236,7 +242,7 @@ const DoctorDashboardPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">总患者数</p>
+                  <p className="text-sm font-medium text-gray-500">{t('doctor.totalPatients')}</p>
                   <p className="text-2xl font-semibold text-gray-900">
                     {isDoctorLoading ? '...' : doctorDashboardData?.total_patients || 0}
                   </p>
@@ -254,7 +260,7 @@ const DoctorDashboardPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">活跃患者</p>
+                  <p className="text-sm font-medium text-gray-500">{t('doctor.activePatients')}</p>
                   <p className="text-2xl font-semibold text-gray-900">
                     {isDoctorLoading ? '...' : doctorDashboardData?.active_patients || 0}
                   </p>
@@ -272,7 +278,7 @@ const DoctorDashboardPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">待完成任务</p>
+                  <p className="text-sm font-medium text-gray-500">{t('doctor.pendingTasks')}</p>
                   <p className="text-2xl font-semibold text-gray-900">
                     {isDoctorLoading ? '...' : doctorDashboardData?.pending_tasks || 0}
                   </p>
@@ -290,7 +296,7 @@ const DoctorDashboardPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">本周完成</p>
+                  <p className="text-sm font-medium text-gray-500">{t('doctor.completedThisWeek')}</p>
                   <p className="text-2xl font-semibold text-gray-900">
                     {isDoctorLoading ? '...' : doctorDashboardData?.completed_this_week || 0}
                   </p>
@@ -305,7 +311,7 @@ const DoctorDashboardPage: React.FC = () => {
             {/* 快速操作 */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">快速操作</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('doctor.quickActions')}</h3>
                 <div className="space-y-3">
                   <button
                     onClick={handleNavigateToPatients}
@@ -314,7 +320,7 @@ const DoctorDashboardPage: React.FC = () => {
                     <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
                     </svg>
-                    患者管理
+                    {t('doctor.patientManagement')}
                   </button>
                   
                   <button
@@ -324,7 +330,7 @@ const DoctorDashboardPage: React.FC = () => {
                     <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
                     </svg>
-                    问卷管理 (即将开放)
+                    {t('doctor.questionnaireManagement')}
                   </button>
                   
                   <button
@@ -334,7 +340,7 @@ const DoctorDashboardPage: React.FC = () => {
                     <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                     </svg>
-                    数据分析 (即将开放)
+                    {t('doctor.dataAnalysis')}
                   </button>
                 </div>
               </div>
@@ -343,11 +349,11 @@ const DoctorDashboardPage: React.FC = () => {
             {/* 最近完成的问卷 */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">最近完成的问卷</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('doctor.recentCompletions')}</h3>
                 {isDoctorLoading ? (
                   <div className="text-center py-8">
                     <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <p className="mt-2 text-sm text-gray-500">加载中...</p>
+                    <p className="mt-2 text-sm text-gray-500">{t('common.loading')}</p>
                   </div>
                 ) : doctorDashboardData?.recent_completions && doctorDashboardData.recent_completions.length > 0 ? (
                   <div className="space-y-3">
@@ -360,7 +366,7 @@ const DoctorDashboardPage: React.FC = () => {
                         <div className="text-right">
                           <p className="text-sm text-gray-500">{formatDate(completion.completed_at)}</p>
                           {completion.score && (
-                            <p className="text-sm font-medium text-green-600">得分: {completion.score}</p>
+                            <p className="text-sm font-medium text-green-600">{t('doctor.score')}: {completion.score}</p>
                           )}
                         </div>
                       </div>
@@ -371,7 +377,7 @@ const DoctorDashboardPage: React.FC = () => {
                     <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <p className="text-gray-500">暂无完成的问卷</p>
+                    <p className="text-gray-500">{t('doctor.noCompletions')}</p>
                   </div>
                 )}
               </div>
@@ -385,11 +391,12 @@ const DoctorDashboardPage: React.FC = () => {
       <footer className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="text-center text-sm text-gray-500">
-            <p>Copyright © 2024 罗骏哲（Junzhe Luo）. 版权所有.</p>
+            <p>Copyright © 2025 罗骏哲（Junzhe Luo）. 版权所有.</p>
           </div>
         </div>
       </footer>
     </div>
+    </PageWrapper>
   );
 };
 

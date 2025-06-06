@@ -1,7 +1,7 @@
 /**
  * HAL问卷系统 - 医生端登录页面
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -14,10 +14,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
 import { setUserSession } from '../../shared/utils/database';
+import { useTranslation } from '../../shared/hooks/useTranslation';
+import PageWrapper from '../../shared/components/PageWrapper';
 
 const DoctorLoginPage: React.FC = () => {
   const router = useRouter();
   const { login } = useHalStore();
+  const { t } = useTranslation();
   
   const [formData, setFormData] = useState({
     doctorName: '',
@@ -51,11 +54,11 @@ const DoctorLoginPage: React.FC = () => {
     const newErrors: Record<string, string> = {};
     
     if (!formData.doctorName.trim()) {
-      newErrors.doctorName = '请输入医生姓名';
+      newErrors.doctorName = t('auth.pleaseEnterDoctorName');
     }
     
     if (!formData.password.trim()) {
-      newErrors.password = '请输入密码';
+      newErrors.password = t('auth.pleaseEnterPassword');
     }
     
     // 如果有错误，显示错误并阻止提交
@@ -68,10 +71,10 @@ const DoctorLoginPage: React.FC = () => {
     
     try {
       // 简单密码验证
-      const correctPassword = 'hemophilia2024';
+      const correctPassword = 'hemophilia2025';
       
       if (formData.password !== correctPassword) {
-        setErrors({ password: '密码错误，请重试' });
+        setErrors({ password: t('auth.passwordIncorrect') });
         return;
       }
       
@@ -102,15 +105,16 @@ const DoctorLoginPage: React.FC = () => {
       
     } catch (error) {
       console.error('医生登录失败:', error);
-      setErrors({ submit: '登录失败，请重试' });
+      setErrors({ submit: t('auth.doctorLoginFailed') });
     } finally {
       setIsLoading(false);
     }
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <PageWrapper>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md">
         {/* 返回首页按钮 */}
         <div className="mb-6">
           <button
@@ -120,7 +124,7 @@ const DoctorLoginPage: React.FC = () => {
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            返回首页
+            {t('auth.backToHome')}
           </button>
         </div>
         
@@ -132,14 +136,14 @@ const DoctorLoginPage: React.FC = () => {
                 <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">医生端登录</h1>
-            <p className="text-gray-600">请输入您的医生信息以访问管理系统</p>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">{t('auth.doctorLogin')}</h1>
+            <p className="text-gray-600">{t('auth.doctorLoginDescription')}</p>
           </div>
           
           <form onSubmit={handleSubmit}>
             <div className="mb-6">
               <label htmlFor="doctorName" className="block mb-2 text-sm font-medium text-gray-700">
-                医生姓名 <span className="text-red-500">*</span>
+                {t('auth.doctorNameRequired')}
               </label>
               <input
                 type="text"
@@ -148,7 +152,7 @@ const DoctorLoginPage: React.FC = () => {
                 value={formData.doctorName}
                 onChange={handleChange}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.doctorName ? 'border-red-500' : 'border-gray-300'}`}
-                placeholder="请输入医生姓名"
+                placeholder={t('auth.enterDoctorName')}
               />
               {errors.doctorName && (
                 <p className="mt-1 text-sm text-red-500">{errors.doctorName}</p>
@@ -157,7 +161,7 @@ const DoctorLoginPage: React.FC = () => {
             
             <div className="mb-6">
               <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-700">
-                密码 <span className="text-red-500">*</span>
+                {t('auth.passwordRequired')}
               </label>
               <div className="relative">
                 <input
@@ -167,7 +171,7 @@ const DoctorLoginPage: React.FC = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
-                  placeholder="请输入密码"
+                  placeholder={t('auth.enterPassword')}
                 />
                 <button
                   type="button"
@@ -202,22 +206,23 @@ const DoctorLoginPage: React.FC = () => {
               disabled={isLoading}
               className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:bg-blue-300"
             >
-              {isLoading ? '登录中...' : '登录'}
+              {isLoading ? t('auth.loginInProgress') : t('auth.login')}
             </button>
           </form>
           
           <div className="mt-6 text-center text-sm text-gray-500">
-            <p>默认密码：hemophilia2024</p>
-            <p className="mt-1">如需修改密码，请联系系统管理员</p>
+            <p>{t('auth.defaultPassword')}</p>
+            <p className="mt-1">{t('auth.changePasswordNote')}</p>
           </div>
         </div>
         
         {/* 版权信息 */}
         <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Copyright © 2024 罗骏哲（Junzhe Luo）. 版权所有.</p>
+          <p>{t('app.copyright')}</p>
+        </div>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 };
 

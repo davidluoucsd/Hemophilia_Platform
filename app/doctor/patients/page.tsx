@@ -1,7 +1,7 @@
 /**
  * HAL问卷系统 - 医生端患者管理
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -14,9 +14,12 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
 import { Patient } from '../../shared/types/database';
+import { useTranslation } from '../../shared/hooks/useTranslation';
+import PageWrapper from '../../shared/components/PageWrapper';
 
 const DoctorPatientsPage: React.FC = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const { 
     currentUser, 
     logout,
@@ -127,7 +130,8 @@ const DoctorPatientsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageWrapper>
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -141,7 +145,7 @@ const DoctorPatientsPage: React.FC = () => {
                   <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
                 </svg>
               </button>
-              <h1 className="text-xl font-semibold text-gray-900">患者管理</h1>
+              <h1 className="text-xl font-semibold text-gray-900">{t('doctor.patientManagement')}</h1>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
@@ -194,7 +198,7 @@ const DoctorPatientsPage: React.FC = () => {
               <form onSubmit={handleSearch} className="flex">
                 <input
                   type="text"
-                  placeholder="搜索患者姓名或ID..."
+                  placeholder={t('doctor.searchPatients')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -204,16 +208,16 @@ const DoctorPatientsPage: React.FC = () => {
                   disabled={isDoctorLoading}
                   className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 disabled:opacity-50"
                 >
-                  搜索
+                  {t('doctor.search')}
                 </button>
               </form>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-            >
-              添加新患者
-            </button>
+                          <button
+                onClick={() => setShowAddModal(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                {t('doctor.addNewPatient')}
+              </button>
           </div>
 
           {/* Patient List */}
@@ -431,7 +435,7 @@ const DoctorPatientsPage: React.FC = () => {
                   disabled={isDoctorLoading}
                   className="w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 >
-                  分配 HAEMO-QoL-A 问卷
+                                      分配 GAD-7 & PHQ-9 问卷
                 </button>
                 <button
                   onClick={() => handleAssignQuestionnaire('hal')}
@@ -461,11 +465,12 @@ const DoctorPatientsPage: React.FC = () => {
       <footer className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="text-center text-sm text-gray-500">
-            <p>Copyright © 2024 罗骏哲（Junzhe Luo）. 版权所有.</p>
+            <p>Copyright © 2025 罗骏哲（Junzhe Luo）. 版权所有.</p>
           </div>
         </div>
       </footer>
     </div>
+    </PageWrapper>
   );
 };
 

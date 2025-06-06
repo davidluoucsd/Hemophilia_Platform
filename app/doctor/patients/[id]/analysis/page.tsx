@@ -1,7 +1,7 @@
 /**
  * Patient Analysis Page - Comprehensive Questionnaire Analysis
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -13,6 +13,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useHalStore } from '../../../../shared/store';
+import { useTranslation } from '../../../../shared/hooks/useTranslation';
+import PageWrapper from '../../../../shared/components/PageWrapper';
 import { 
   getPatientInfo,
   getMedicalInfo,
@@ -36,6 +38,7 @@ const PatientAnalysisPage: React.FC = () => {
   const router = useRouter();
   const params = useParams();
   const patientId = params.id as string;
+  const { t } = useTranslation();
 
   const { currentUser } = useHalStore();
 
@@ -113,7 +116,7 @@ const PatientAnalysisPage: React.FC = () => {
         trendData.push({
           date: dateStr,
           haemqol_total: analysis.totalScore,
-          questionnaire: 'HAEMO-QoL-A'
+          questionnaire: 'GAD-7 & PHQ-9'
         });
       }
     });
@@ -213,7 +216,7 @@ const PatientAnalysisPage: React.FC = () => {
 
     } else if (latestResponse.questionnaire_type === 'haemqol') {
       reportContent += `
-**HAEMO-QoL-A生存质量评估**
+                  **GAD-7 & PHQ-9心理健康评估**
 - 总分：${analysis.totalScore.toFixed(1)}分
 
 **各维度得分：**
@@ -287,6 +290,7 @@ const PatientAnalysisPage: React.FC = () => {
   const latestResponse = responses[0];
 
   return (
+    <PageWrapper>
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
@@ -395,7 +399,7 @@ const PatientAnalysisPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">问卷类型</p>
-                  <p className="font-medium">{latestResponse.questionnaire_type === 'hal' ? 'HAL血友病活动列表' : 'HAEMO-QoL-A生存质量评估'}</p>
+                  <p className="font-medium">{latestResponse.questionnaire_type === 'hal' ? 'HAL血友病活动列表' : 'GAD-7 & PHQ-9心理健康评估'}</p>
                 </div>
                 {latestResponse.total_score && (
                   <div>
@@ -464,7 +468,7 @@ const PatientAnalysisPage: React.FC = () => {
                           }
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {response.questionnaire_type === 'hal' ? 'HAL' : 'HAEMO-QoL-A'}
+                          {response.questionnaire_type === 'hal' ? 'HAL' : 'GAD-7 & PHQ-9'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                           {response.total_score?.toFixed(1) || '计算中'}
@@ -516,6 +520,7 @@ const PatientAnalysisPage: React.FC = () => {
         </div>
       )}
     </div>
+    </PageWrapper>
   );
 };
 

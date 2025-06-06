@@ -1,7 +1,7 @@
 /**
- * HAEMO-QoL-A问卷系统 - 评分逻辑
+ * GAD-7 & PHQ-9 问卷系统 - 评分逻辑
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -13,14 +13,12 @@ import { HAEMQOL_SECTIONS, isReverseQuestion } from './questions';
 
 // 定义问卷各部分的问题编号
 const PART_QUESTIONS = {
-  part1: Array.from({ length: 11 }, (_, i) => i + 1),     // 问题1-11
-  part2: Array.from({ length: 11 }, (_, i) => i + 12),    // 问题12-22
-  part3: Array.from({ length: 14 }, (_, i) => i + 23),    // 问题23-36
-  part4: Array.from({ length: 5 }, (_, i) => i + 37)      // 问题37-41
+  gad7: Array.from({ length: 7 }, (_, i) => i + 1),     // 问题1-7
+  phq9: Array.from({ length: 9 }, (_, i) => i + 8)      // 问题8-16
 };
 
 /**
- * 处理答案值，根据问题是否为正向题目进行反转计算
+ * 处理答案值，直接返回原始分数
  * 
  * @param value 原始答案值
  * @param questionId 问题编号
@@ -33,7 +31,7 @@ function processAnswerValue(value: string, questionId: number): number {
   
   const numValue = parseInt(value);
   
-  // 直接返回原始分数，不进行反转计算
+  // 直接返回原始分数
   return numValue;
 }
 
@@ -66,21 +64,19 @@ function calculatePartScore(answers: HaemqolAnswers, partQuestions: number[]): n
 }
 
 /**
- * 计算HAEMO-QoL-A问卷的所有分数
+ * 计算GAD-7和PHQ-9问卷的所有分数
  * 
  * @param answers 问卷答案
  * @returns 所有部分的分数和总分
  */
 export function calculateHaemqolScores(answers: HaemqolAnswers): HaemqolScores {
   // 计算各部分分数
-  const part1Score = calculatePartScore(answers, PART_QUESTIONS.part1);
-  const part2Score = calculatePartScore(answers, PART_QUESTIONS.part2);
-  const part3Score = calculatePartScore(answers, PART_QUESTIONS.part3);
-  const part4Score = calculatePartScore(answers, PART_QUESTIONS.part4);
+  const gad7Score = calculatePartScore(answers, PART_QUESTIONS.gad7);
+  const phq9Score = calculatePartScore(answers, PART_QUESTIONS.phq9);
   
   // 计算总分（所有问题的分数总和）
   let totalScore = null;
-  const allQuestions = [...PART_QUESTIONS.part1, ...PART_QUESTIONS.part2, ...PART_QUESTIONS.part3, ...PART_QUESTIONS.part4];
+  const allQuestions = [...PART_QUESTIONS.gad7, ...PART_QUESTIONS.phq9];
   let totalSum = 0;
   let validCount = 0;
   
@@ -100,16 +96,16 @@ export function calculateHaemqolScores(answers: HaemqolAnswers): HaemqolScores {
   }
   
   return {
-    part1: part1Score,
-    part2: part2Score,
-    part3: part3Score,
-    part4: part4Score,
+    part1: gad7Score,
+    part2: phq9Score,
+    part3: null,
+    part4: null,
     total: totalScore
   };
 }
 
 /**
- * 检查HAEMO-QoL-A问卷是否所有问题均已回答
+ * 检查GAD-7和PHQ-9问卷是否所有问题均已回答
  * 
  * @param answers 问卷答案
  * @returns 是否所有问题均已回答
@@ -131,7 +127,7 @@ export function checkAllHaemqolQuestionsAnswered(answers: HaemqolAnswers): boole
 }
 
 /**
- * 获取HAEMO-QoL-A问卷中未回答的问题
+ * 获取GAD-7和PHQ-9问卷中未回答的问题
  * 
  * @param answers 问卷答案
  * @returns 未回答问题的编号数组

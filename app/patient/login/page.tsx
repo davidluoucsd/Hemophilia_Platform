@@ -1,7 +1,7 @@
 /**
  * Patient Login Page with ID Verification
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -15,10 +15,13 @@ import { useRouter } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
 import { checkPatientExists, setUserSession } from '../../shared/utils/database';
 import { patientLogin } from '../../shared/utils/patient-sync';
+import { useTranslation } from '../../shared/hooks/useTranslation';
+import PageWrapper from '../../shared/components/PageWrapper';
 
 export default function PatientLogin() {
   const router = useRouter();
   const { setUserRole, setCurrentUser, setIsAuthenticated } = useHalStore();
+  const { t } = useTranslation();
   
   const [patientId, setPatientId] = useState('');
   const [name, setName] = useState('');
@@ -31,7 +34,7 @@ export default function PatientLogin() {
     e.preventDefault();
     
     if (!patientId.trim()) {
-      setError('请输入患者ID');
+      setError(t('auth.pleaseEnterPatientId'));
       return;
     }
 
@@ -51,13 +54,13 @@ export default function PatientLogin() {
           // Patient doesn't exist - proceed to name input for new registration
           setStep('name');
         }
-      } else {
-        setError(result.error || '验证失败，请重试');
-      }
-    } catch (error) {
-      console.error('Patient ID verification error:', error);
-      setError('系统错误，请稍后重试');
-    } finally {
+              } else {
+          setError(result.error || t('auth.verificationFailed'));
+        }
+      } catch (error) {
+        console.error('Patient ID verification error:', error);
+        setError(t('auth.systemError'));
+      } finally {
       setIsLoading(false);
     }
   };
@@ -67,7 +70,7 @@ export default function PatientLogin() {
     e.preventDefault();
     
     if (!name.trim()) {
-      setError('请输入您的姓名');
+      setError(t('auth.pleaseEnterName'));
       return;
     }
 
@@ -84,7 +87,7 @@ export default function PatientLogin() {
           // Name matches - proceed with login
           await handleSuccessfulLogin(result.data.id, result.data.name, true);
         } else {
-          setError('姓名与记录不符，请检查输入');
+          setError(t('auth.nameNotMatch'));
         }
       } else {
         // New patient - create session and proceed to info page
@@ -92,7 +95,7 @@ export default function PatientLogin() {
       }
     } catch (error) {
       console.error('Patient login error:', error);
-      setError('登录失败，请稍后重试');
+      setError(t('auth.loginFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +112,7 @@ export default function PatientLogin() {
       const loginResult = await patientLogin(id, userName);
       
       if (!loginResult.success) {
-        setError('登录失败，请重试');
+        setError(t('auth.loginFailed'));
         return;
       }
 
@@ -132,7 +135,7 @@ export default function PatientLogin() {
       }
     } catch (error) {
       console.error('Error setting up user session:', error);
-      setError('登录过程中出现错误，请重试');
+      setError(t('auth.loginProcessError'));
     }
   };
 
@@ -149,8 +152,9 @@ export default function PatientLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+    <PageWrapper>
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -158,9 +162,9 @@ export default function PatientLogin() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">患者端登录</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('auth.patientLogin')}</h1>
           <p className="text-gray-600">
-            {step === 'id' ? '请输入您的患者ID' : '请验证您的姓名'}
+            {step === 'id' ? t('auth.enterPatientId') : t('auth.verifyName')}
           </p>
         </div>
 
@@ -178,7 +182,7 @@ export default function PatientLogin() {
           <form onSubmit={handleIdSubmit} className="space-y-6">
             <div>
               <label htmlFor="patientId" className="block text-sm font-medium text-gray-700 mb-2">
-                患者ID *
+                {t('auth.patientIdRequired')}
               </label>
               <input
                 type="text"
@@ -186,7 +190,7 @@ export default function PatientLogin() {
                 value={patientId}
                 onChange={(e) => setPatientId(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                placeholder="请输入您的患者ID"
+                placeholder={t('auth.enterPatientIdPlaceholder')}
                 required
                 autoFocus
               />
@@ -204,14 +208,14 @@ export default function PatientLogin() {
                 onClick={handleBackToHome}
                 className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                返回首页
+                {t('auth.backToHome')}
               </button>
               <button
                 type="submit"
                 disabled={isLoading}
                 className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isLoading ? '验证中...' : '下一步'}
+                {isLoading ? t('auth.verifying') : t('auth.nextStep')}
               </button>
             </div>
           </form>
@@ -222,7 +226,7 @@ export default function PatientLogin() {
           <form onSubmit={handleNameSubmit} className="space-y-6">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                患者姓名 *
+                {t('auth.patientNameRequired')}
               </label>
               <input
                 type="text"
@@ -230,7 +234,7 @@ export default function PatientLogin() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                placeholder="请输入您的姓名"
+                placeholder={t('auth.enterNamePlaceholder')}
                 required
                 autoFocus
               />
@@ -251,14 +255,14 @@ export default function PatientLogin() {
                 onClick={handleBackToId}
                 className="flex-1 py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                返回上一步
+                {t('auth.backToPrevious')}
               </button>
               <button
                 type="submit"
                 disabled={isLoading}
                 className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isLoading ? '验证中...' : '登录'}
+                {isLoading ? t('auth.verifying') : t('auth.login')}
               </button>
             </div>
           </form>
@@ -267,10 +271,11 @@ export default function PatientLogin() {
         {/* Help Text */}
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-500">
-            首次使用？系统会引导您填写基本信息
+            {t('auth.firstTimeHelp')}
           </p>
         </div>
+        </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 } 

@@ -1,7 +1,7 @@
 /**
  * HAL问卷系统 - Electron 主进程文件
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -79,7 +79,7 @@ function createWindow() {
             dialog.showMessageBox(mainWindow, {
               title: '关于 HAL问卷系统',
               message: 'HAL问卷系统',
-              detail: '版本: 1.0.0\n版权所有 © 2024 罗骏哲（Junzhe Luo）\n\n本软件用于评估血友病患者的关节健康和功能状态。',
+              detail: '版本: 1.0.0\n版权所有 © 2025 罗骏哲（Junzhe Luo）\n\n本软件用于评估血友病患者的关节健康和功能状态。',
               buttons: ['确定'],
               icon: path.join(__dirname, 'public', 'app-icon.ico')
             });

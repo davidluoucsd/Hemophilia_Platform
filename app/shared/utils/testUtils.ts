@@ -1,7 +1,7 @@
 /**
  * Test Utilities - Random Data Generation for Testing
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -32,16 +32,16 @@ export function generateRandomHalAnswers(): HalAnswers {
 }
 
 /**
- * Generate random HAEMO-QoL-A questionnaire answers
+ * Generate random GAD-7 & PHQ-9 questionnaire answers
  */
 export function generateRandomHaemqolAnswers(): HaemqolAnswers {
   const answers: HaemqolAnswers = {};
   
-  // HAEMO-QoL-A questionnaire has 41 questions (hq1-hq41)
-  for (let i = 1; i <= 41; i++) {
+  // GAD-7 & PHQ-9 questionnaire has 16 questions (hq1-hq16)
+  for (let i = 1; i <= 16; i++) {
     const questionId = `hq${i}` as keyof HaemqolAnswers;
-    // Random answer between 0-5
-    const possibleAnswers = ['0', '1', '2', '3', '4', '5'];
+    // Random answer between 0-3
+    const possibleAnswers = ['0', '1', '2', '3'];
     const randomIndex = Math.floor(Math.random() * possibleAnswers.length);
     answers[questionId] = possibleAnswers[randomIndex] as any;
   }
@@ -109,7 +109,7 @@ export async function autoFillHalQuestionnaire(
 }
 
 /**
- * Fill HAEMO-QoL-A questionnaire with random answers (with animation)
+ * Fill GAD-7 & PHQ-9 questionnaire with random answers (with animation)
  */
 export async function autoFillHaemqolQuestionnaire(
   setHaemqolAnswer: (questionId: string, value: string) => void,

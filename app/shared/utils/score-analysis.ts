@@ -43,23 +43,15 @@ export const HAL_SPECIAL_GROUPS = {
   LOWCOM: [3, 4, 5, 6, 7, 14, 15, 16, 17, 22] // 复杂下肢
 };
 
-// HAEMO-QoL-A Questionnaire Part Structure
+// GAD-7 & PHQ-9 Questionnaire Part Structure
 export const HAEMQOL_PARTS = {
-  PART1: { // 问卷一
-    name: '问卷一（身体健康）',
-    questions: ['hq1', 'hq2', 'hq3', 'hq4', 'hq5', 'hq6', 'hq7', 'hq8', 'hq9']
+  GAD7: { // GAD-7 广泛性焦虑障碍筛查
+    name: 'GAD-7 焦虑症状评分',
+    questions: ['hq1', 'hq2', 'hq3', 'hq4', 'hq5', 'hq6', 'hq7']
   },
-  PART2: { // 问卷二
-    name: '问卷二（感受与情绪）',
-    questions: ['hq10', 'hq11', 'hq12', 'hq13', 'hq14', 'hq15', 'hq16', 'hq17', 'hq18', 'hq19', 'hq20']
-  },
-  PART3: { // 问卷三
-    name: '问卷三（对他人的看法）',
-    questions: ['hq21', 'hq22', 'hq23', 'hq24', 'hq25', 'hq26', 'hq27', 'hq28', 'hq29']
-  },
-  PART4: { // 问卷四
-    name: '问卷四（运动与学校）',
-    questions: ['hq30', 'hq31', 'hq32', 'hq33', 'hq34', 'hq35', 'hq36', 'hq37', 'hq38', 'hq39', 'hq40', 'hq41']
+  PHQ9: { // PHQ-9 患者健康问卷抑郁症筛查
+    name: 'PHQ-9 抑郁症状评分',
+    questions: ['hq8', 'hq9', 'hq10', 'hq11', 'hq12', 'hq13', 'hq14', 'hq15', 'hq16']
   }
 };
 
@@ -180,7 +172,7 @@ export function calculateHALDomainScores(answers: Record<string, string>) {
   };
 }
 
-// HAEMO-QoL-A Score Calculation
+// GAD-7 & PHQ-9 Score Calculation
 export function calculateHAEMQOLPartScores(answers: Record<string, string>) {
   const partScores: Record<string, { score: number; total: number; percentage: number }> = {};
   let totalScore = 0;
@@ -201,7 +193,7 @@ export function calculateHAEMQOLPartScores(answers: Record<string, string>) {
       }
     });
 
-    const partTotal = partQuestions * 4; // Max score per question is 4
+    const partTotal = partQuestions * 3; // Max score per question is 3 (0-3 scale)
     const percentage = partQuestions > 0 ? (partScore / partTotal) * 100 : 0;
 
     partScores[partKey] = {
@@ -217,7 +209,7 @@ export function calculateHAEMQOLPartScores(answers: Record<string, string>) {
   return {
     parts: partScores,
     totalScore,
-    maxPossibleScore: totalQuestions * 4
+    maxPossibleScore: totalQuestions * 3 // GAD-7 & PHQ-9 use 0-3 scale
   };
 }
 
@@ -269,8 +261,8 @@ export function generateDetailedCSVHeaders() {
     // 治疗方案
     '用药方案', '每次剂量',
     
-    // HAEMO-QoL-A详细分数
-    'HAEMO-QoL-A问卷一', 'HAEMO-QoL-A问卷二', 'HAEMO-QoL-A问卷三', 'HAEMO-QoL-A问卷四', 'HAEMO-QoL-A总分',
+    // GAD-7 & PHQ-9详细分数
+    'GAD-7焦虑评分', 'PHQ-9抑郁评分', '心理健康总分',
     
     // HAL详细分数
     'HAL躺坐跪站', 'HAL下肢功能', 'HAL上肢功能', 'HAL交通工具', 'HAL自我照料', 'HAL家务劳动', 'HAL休闲体育',
@@ -292,7 +284,7 @@ export function generatePatientCSVRow(
   const latestHal = responses.find(r => r.questionnaire_type === 'hal');
 
   // Parse answers and calculate detailed scores
-  let haemqolScores = { part1: '', part2: '', part3: '', part4: '', total: '' };
+  let haemqolScores = { gad7: '', phq9: '', total: '' };
   let halScores = {
     lsks: '', legs: '', arms: '', trans: '', selfc: '', househ: '', leispo: '',
     upperLimb: '', basicLower: '', complexLower: '', nationalTotal: ''
@@ -305,10 +297,8 @@ export function generatePatientCSVRow(
     const analysis = generateScoreAnalysis('haemqol', answers);
     
     haemqolScores = {
-      part1: analysis.parts?.find(p => p.key === 'PART1')?.score?.toString() || '',
-      part2: analysis.parts?.find(p => p.key === 'PART2')?.score?.toString() || '',
-      part3: analysis.parts?.find(p => p.key === 'PART3')?.score?.toString() || '',
-      part4: analysis.parts?.find(p => p.key === 'PART4')?.score?.toString() || '',
+      gad7: analysis.parts?.find(p => p.key === 'GAD7')?.score?.toString() || '',
+      phq9: analysis.parts?.find(p => p.key === 'PHQ9')?.score?.toString() || '',
       total: analysis.totalScore?.toString() || ''
     };
   }
@@ -345,10 +335,8 @@ export function generatePatientCSVRow(
     patient.height.toString(),
     medicalInfo?.treatment_plan || '',
     medicalInfo?.treatment_dose?.toString() || '',
-    haemqolScores.part1,
-    haemqolScores.part2,
-    haemqolScores.part3,
-    haemqolScores.part4,
+    haemqolScores.gad7,
+    haemqolScores.phq9,
     haemqolScores.total,
     halScores.lsks,
     halScores.legs,

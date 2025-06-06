@@ -1,5 +1,5 @@
 /**
- * HAEMO-QoL-A问卷系统 - 问卷页面
+ * GAD-7 & PHQ-9 问卷系统 - 问卷页面
  * 
  * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
@@ -22,11 +22,14 @@ import {
   saveTaskSpecificAnswers,
   getOrCreatePatientTask
 } from '../../shared/utils/database';
+import { useTranslation } from '../../shared/hooks/useTranslation';
+import PageWrapper from '../../shared/components/PageWrapper';
 
-const HaemQoLPage: React.FC = () => {
+const PsychologyQuestionnairePage: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const taskId = searchParams.get('taskId');
+  const { t } = useTranslation();
   
   const { 
     haemqolAnswers, 
@@ -275,7 +278,7 @@ const HaemQoLPage: React.FC = () => {
     
     return (
       <div className="flex flex-wrap gap-2 mt-2">
-        {[0, 1, 2, 3, 4, 5].map((value) => {
+        {[0, 1, 2, 3].map((value) => {
           const valueStr = value.toString() as HaemqolAnswerValue;
           const isSelected = selectedValue === valueStr;
           
@@ -323,7 +326,7 @@ const HaemQoLPage: React.FC = () => {
   
   return (
     <div className="container mx-auto px-4 pb-16">
-      <h1 className="page-title">HAEMO-QoL-A 成人血友病患者生存质量量表</h1>
+      <h1 className="page-title">心理健康筛查问卷 (GAD-7 & PHQ-9)</h1>
       
       {/* 导航按钮 */}
       <div className="flex justify-between mb-6">
@@ -373,11 +376,11 @@ const HaemQoLPage: React.FC = () => {
           <div className="mb-6 bg-blue-50 p-4 rounded-lg">
             <h2 className="font-semibold text-blue-700 mb-2">问卷说明</h2>
             <p className="text-gray-700 text-sm">
-              该问卷旨在了解血友病及其治疗如何影响您的生活质量。请回答所有问题，这些问题没有正确或错误的答案。
-              每个问题使用0-5分制评价，其中0表示"从来没有"，5表示"总是"。请为每个问题选择一个最能代表您情况的答案。
+              该问卷包含GAD-7和PHQ-9两个心理健康筛查量表，用于评估您过去2周的焦虑和抑郁症状。
+              每个问题使用0-3分制评价，其中0表示"完全没有"，3表示"几乎每天"。请为每个问题选择一个最能代表您情况的答案。
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {[0, 1, 2, 3, 4, 5].map(value => (
+              {[0, 1, 2, 3].map(value => (
                 <div key={value} className="inline-flex items-center bg-white px-2 py-1 rounded border border-gray-200">
                   <span className="font-semibold mr-1">{value}</span>
                   <span className="text-xs text-gray-600">{formatHaemqolAnswerText(value.toString() as HaemqolAnswerValue)}</span>
@@ -431,7 +434,7 @@ const HaemQoLPage: React.FC = () => {
           {/* 完成度指示器 - 在侧边栏底部显示 */}
           {!isMobileView && (
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <div className="text-sm text-gray-700">问卷完成度</div>
+              <div className="text-sm text-gray-700">{t('questionnaire.completionRate')}</div>
               <div className="flex items-center mt-2">
                 <div className="flex-1 bg-gray-200 rounded-full h-2">
                   <div 
@@ -491,7 +494,7 @@ const HaemQoLPage: React.FC = () => {
                       <div className="flex-1">
                         <p className="font-medium">{question.title}</p>
                         {isUnanswered && (
-                          <p className="text-red-500 text-sm mt-1">请回答此问题</p>
+                          <p className="text-red-500 text-sm mt-1">{t('questionnaire.answerAllQuestions')}</p>
                         )}
                         {renderAnswerOptions(question.id)}
                       </div>
@@ -511,7 +514,7 @@ const HaemQoLPage: React.FC = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
               </svg>
-                    {sectionIndex === 0 ? '返回任务中心' : '上一部分'}
+                    {sectionIndex === 0 ? t('questionnaire.backToTaskCenter') : t('questionnaire.previousSection')}
             </button>
             
                 <button
@@ -519,7 +522,7 @@ const HaemQoLPage: React.FC = () => {
                     onClick={handleNextSection}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
               >
-                    {sectionIndex === HAEMQOL_SECTIONS.length - 1 ? '完成问卷' : '下一部分'}
+                    {sectionIndex === HAEMQOL_SECTIONS.length - 1 ? t('questionnaire.completeQuestionnaire') : t('questionnaire.nextSection')}
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
@@ -540,14 +543,14 @@ const HaemQoLPage: React.FC = () => {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
           </svg>
-          返回任务中心
+          {t('questionnaire.backToTaskCenter')}
         </button>
         
         <button 
           onClick={handleNextClick}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm"
         >
-          完成问卷
+          {t('questionnaire.completeQuestionnaire')}
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
@@ -555,7 +558,7 @@ const HaemQoLPage: React.FC = () => {
       </div>
 
       <footer className="mt-10 text-center text-sm text-gray-500">
-        <p>© 2024 罗骏哲（Junzhe Luo）. 版权所有.</p>
+                    <p>© 2025 罗骏哲（Junzhe Luo）. 版权所有.</p>
       </footer>
       
       {/* 脉动动画样式 */}
@@ -627,4 +630,4 @@ const HaemQoLPage: React.FC = () => {
   );
 };
 
-export default HaemQoLPage; 
+export default PsychologyQuestionnairePage; 

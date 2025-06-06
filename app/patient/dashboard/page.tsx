@@ -1,7 +1,7 @@
 /**
  * Patient Dashboard - Task-based Interface
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -28,6 +28,8 @@ import {
   getTaskAnswersHistory
 } from '../../shared/utils/database';
 import { PatientDashboardData, Task, Response } from '../../shared/types/database';
+import { useTranslation } from '../../shared/hooks/useTranslation';
+import PageWrapper from '../../shared/components/PageWrapper';
 
 // Task card component
 interface TaskCardProps {
@@ -51,6 +53,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
   dueDate,
   priority
 }) => {
+  const { t } = useTranslation();
+  
   const getStatusColor = () => {
     switch (status) {
       case 'completed': return 'bg-green-50 border-green-200';
@@ -62,19 +66,19 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
   const getStatusText = () => {
     switch (status) {
-      case 'completed': return '已完成';
-      case 'in_progress': return '进行中';
-      case 'expired': return '已过期';
-      default: return '未开始';
+      case 'completed': return t('patient.dashboardPage.statusCompleted');
+      case 'in_progress': return t('patient.dashboardPage.statusInProgress');
+      case 'expired': return t('patient.dashboardPage.statusExpired');
+      default: return t('patient.dashboardPage.statusNotStarted');
     }
   };
 
   const getButtonText = () => {
     switch (status) {
-      case 'completed': return '查看结果';
-      case 'in_progress': return '继续填写';
-      case 'expired': return '重新开始';
-      default: return '开始填写';
+      case 'completed': return t('patient.dashboardPage.buttonViewResults');
+      case 'in_progress': return t('patient.dashboardPage.buttonContinue');
+      case 'expired': return t('patient.dashboardPage.buttonRestart');
+      default: return t('patient.dashboardPage.buttonStart');
     }
   };
 
@@ -87,7 +91,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
         </div>
         {priority === 'urgent' && (
           <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-            紧急
+            {t('patient.dashboardPage.priorityUrgent')}
           </span>
         )}
       </div>
@@ -96,7 +100,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
       {status !== 'not_started' && (
         <div className="mb-4">
           <div className="flex justify-between text-sm text-gray-600 mb-1">
-            <span>进度</span>
+            <span>{t('patient.dashboardPage.progress')}</span>
             <span>{progress}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -118,14 +122,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>约 {estimatedTime} 分钟</span>
+            <span>{t('patient.dashboardPage.estimatedTime', { time: estimatedTime })}</span>
           </div>
           {dueDate && (
             <div className="flex items-center">
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span>截止: {new Date(dueDate).toLocaleDateString()}</span>
+              <span>{t('patient.dashboardPage.dueDate', { date: new Date(dueDate).toLocaleDateString() })}</span>
             </div>
           )}
         </div>
@@ -162,6 +166,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 export default function PatientDashboard() {
   const router = useRouter();
   const { currentUser, logout, answers, haemqolAnswers, loadData } = useHalStore();
+  const { t } = useTranslation();
   const [dashboardData, setDashboardData] = useState<PatientDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -188,7 +193,7 @@ export default function PatientDashboard() {
       hasActiveTask: boolean
     }
   }>({
-    haemqol: { status: 'not_started', progress: 0, answered: 0, total: 41, task: null, hasActiveTask: false },
+    haemqol: { status: 'not_started', progress: 0, answered: 0, total: 16, task: null, hasActiveTask: false },
     hal: { status: 'not_started', progress: 0, answered: 0, total: 42, task: null, hasActiveTask: false }
   });
 
@@ -240,7 +245,7 @@ export default function PatientDashboard() {
     };
     
     const selectedHalTask = selectTaskForDisplay(halTasks, 'HAL');
-    const selectedHaemqolTask = selectTaskForDisplay(haemqolTasks, 'HAEMO-QoL-A');
+            const selectedHaemqolTask = selectTaskForDisplay(haemqolTasks, 'GAD-7 & PHQ-9');
     
     // Load task-specific data if we have active tasks
     let halTaskAnswers = answers;
@@ -309,9 +314,9 @@ export default function PatientDashboard() {
       console.log('❌ No HAL task assigned');
     }
 
-    // Calculate HAEMO-QoL-A status
+    // Calculate GAD-7 & PHQ-9 status
     const haemqolAnswered = Object.keys(haemqolTaskAnswers).length;
-    const haemqolTotal = 41;
+    const haemqolTotal = 16; // GAD-7 (7 questions) + PHQ-9 (9 questions) = 16 total
     const haemqolProgress = Math.round((haemqolAnswered / haemqolTotal) * 100);
 
     let haemqolStatus: 'not_started' | 'in_progress' | 'completed' = 'not_started';
@@ -321,14 +326,14 @@ export default function PatientDashboard() {
       haemqolStatus = 'in_progress';
     }
 
-    console.log('📝 HAEMO-QoL-A local answers:', {
+    console.log('📝 GAD-7 & PHQ-9 local answers:', {
       answered: haemqolAnswered,
       total: haemqolTotal,
       status: haemqolStatus,
       progress: haemqolProgress
     });
 
-    // Set HAEMO-QoL-A task information
+    // Set GAD-7 & PHQ-9 task information
     let haemqolTaskInfo = null;
     if (selectedHaemqolTask) {
       haemqolTaskInfo = {
@@ -337,28 +342,34 @@ export default function PatientDashboard() {
         progress: selectedHaemqolTask.progress,
         completed_at: selectedHaemqolTask.completed_at
       };
-      console.log('✅ HAEMO-QoL-A task found:', haemqolTaskInfo);
+      console.log('✅ GAD-7 & PHQ-9 task found:', haemqolTaskInfo);
     } else {
-      console.log('❌ No HAEMO-QoL-A task assigned');
+      console.log('❌ No GAD-7 & PHQ-9 task assigned');
     }
 
     const finalStatuses = {
       hal: {
-        status: halStatus,
-        progress: halProgress,
+        // FIXED: Use task status if there's an active task, otherwise use local calculation
+        status: (selectedHalTask && (selectedHalTask.status === 'not_started' || selectedHalTask.status === 'in_progress')) 
+          ? selectedHalTask.status : halStatus,
+        // FIXED: Use task progress if there's an active task, otherwise use local calculation
+        progress: (selectedHalTask && (selectedHalTask.status === 'not_started' || selectedHalTask.status === 'in_progress'))
+          ? selectedHalTask.progress : halProgress,
         answered: halAnswered,
         total: halTotal,
         task: halTaskInfo,
-        // FIXED: Check if there's a truly active task (not just incomplete)
         hasActiveTask: !!(selectedHalTask && (selectedHalTask.status === 'not_started' || selectedHalTask.status === 'in_progress'))
       },
       haemqol: {
-        status: haemqolStatus,
-        progress: haemqolProgress,
+        // FIXED: Use task status if there's an active task, otherwise use local calculation
+        status: (selectedHaemqolTask && (selectedHaemqolTask.status === 'not_started' || selectedHaemqolTask.status === 'in_progress'))
+          ? selectedHaemqolTask.status : haemqolStatus,
+        // FIXED: Use task progress if there's an active task, otherwise use local calculation
+        progress: (selectedHaemqolTask && (selectedHaemqolTask.status === 'not_started' || selectedHaemqolTask.status === 'in_progress'))
+          ? selectedHaemqolTask.progress : haemqolProgress,
         answered: haemqolAnswered,
         total: haemqolTotal,
         task: haemqolTaskInfo,
-        // FIXED: Check if there's a truly active task (not just incomplete)
         hasActiveTask: !!(selectedHaemqolTask && (selectedHaemqolTask.status === 'not_started' || selectedHaemqolTask.status === 'in_progress'))
       }
     };
@@ -496,7 +507,7 @@ export default function PatientDashboard() {
       // 2. Check current store state
       console.log('💾 Current store state:');
       console.log('  - HAL answers:', Object.keys(answers).length, 'questions');
-      console.log('  - HAEMO-QoL-A answers:', Object.keys(haemqolAnswers).length, 'questions');
+              console.log('  - GAD-7 & PHQ-9 answers:', Object.keys(haemqolAnswers).length, 'questions');
       console.log('  - Sample HAL answers:', Object.entries(answers).slice(0, 5));
       
       // 3. Check sessionStorage
@@ -650,12 +661,12 @@ export default function PatientDashboard() {
   const completedTasks = Object.values(taskStatuses).filter(task => task.status === 'completed').length;
   const totalTasks = Object.keys(taskStatuses).length;
 
-  if (isLoading) {
+  if (isLoading && !dashboardData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">正在加载...</p>
+          <p className="text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -664,13 +675,14 @@ export default function PatientDashboard() {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center">
-        <div className="text-center bg-white p-8 rounded-xl shadow-lg">
+        <div className="text-center">
+          <div className="text-red-500 text-4xl mb-4">⚠️</div>
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={() => router.push('/patient/login')}
+            onClick={() => window.location.reload()}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
-            返回登录
+            {t('patient.dashboardPage.refresh')}
           </button>
         </div>
       </div>
@@ -678,382 +690,315 @@ export default function PatientDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
+    <PageWrapper>
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
               <h1 className="text-xl font-semibold text-gray-900">
-                HAL血友病生活质量评估系统
+                {t('app.title')}
               </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">
-                欢迎，{dashboardData?.patient.name || currentUser?.name}
-              </span>
-              <button
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className="text-gray-500 hover:text-gray-700 flex items-center disabled:opacity-50"
-                title="刷新数据"
-              >
-                <svg className={`w-5 h-5 mr-1 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                刷新
-              </button>
-              <button
-                onClick={handleDebugDatabase}
-                className="text-gray-500 hover:text-gray-700 flex items-center text-xs"
-                title="调试数据库"
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                调试
-              </button>
-              <button
-                onClick={handleLogout}
-                className="text-gray-500 hover:text-gray-700 flex items-center"
-              >
-                <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                退出
-              </button>
+              <div className="flex items-center space-x-4">
+                <span className="text-gray-600">
+                  {t('doctor.welcome')}, {currentUser?.name}
+                </span>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="text-gray-500 hover:text-gray-700 flex items-center disabled:opacity-50"
+                  title={t('patient.dashboardPage.refresh')}
+                >
+                  <svg className={`w-5 h-5 mr-1 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {t('patient.dashboardPage.refresh')}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-500 hover:text-gray-700 flex items-center"
+                >
+                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  {t('patient.dashboardPage.logout')}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome section */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                患者任务中心
-              </h2>
-              <p className="text-gray-600">
-                请根据医生安排完成以下问卷任务。您可以随时暂停并继续填写。
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handlePersonalInfo}
-                className="flex items-center px-4 py-2 text-green-600 border border-green-600 rounded-lg hover:bg-green-50 transition-colors"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                个人信息
-              </button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Welcome section */}
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {t('patient.dashboardPage.title')}
+                </h2>
+                <p className="text-gray-600">
+                  {t('patient.dashboardPage.description')}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handlePersonalInfo}
+                  className="flex items-center px-4 py-2 text-green-600 border border-green-600 rounded-lg hover:bg-green-50 transition-colors"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  {t('patient.personalInfo')}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-xl shadow-sm mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
-              <button
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'tasks'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                onClick={() => setActiveTab('tasks')}
-              >
-                当前任务
-              </button>
-              <button
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'history'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                onClick={() => setActiveTab('history')}
-              >
-                问卷历史 ({questionnaireHistory.length})
-              </button>
-            </nav>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'tasks' && (
-          <>
-            {/* Task cards grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {/* HAEMO-QoL-A Task */}
-              <TaskCard
-                title="HAEMO-QoL-A 生存质量量表"
-                description={(() => {
-                  const tasks = assignedTasks.filter(t => t.questionnaire_id === 'haemqol')
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                  const latestTask = tasks[0];
-                  return latestTask?.instructions || "评估血友病患者的生活质量，包括身体健康、情感状态、社会功能等多个维度。";
-                })()}
-                status={taskStatuses.haemqol.status}
-                progress={taskStatuses.haemqol.progress}
-                estimatedTime={15}
-                onStart={() => handleTaskStart('haemqol')}
-                priority={(() => {
-                  const tasks = assignedTasks.filter(t => t.questionnaire_id === 'haemqol')
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                  const latestTask = tasks[0];
-                  return latestTask?.priority || 'normal';
-                })() as 'normal' | 'urgent'}
-                dueDate={(() => {
-                  const tasks = assignedTasks.filter(t => t.questionnaire_id === 'haemqol')
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                  const latestTask = tasks[0];
-                  return latestTask?.due_date || undefined;
-                })()}
-              />
-
-              {/* HAL Task */}
-              <TaskCard
-                title="HAL 血友病活动列表"
-                description={(() => {
-                  const tasks = assignedTasks.filter(t => t.questionnaire_id === 'hal')
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                  const latestTask = tasks[0];
-                  return latestTask?.instructions || "评估血友病对日常活动的影响程度，帮助制定个性化的治疗和生活管理方案。";
-                })()}
-                status={taskStatuses.hal.status}
-                progress={taskStatuses.hal.progress}
-                estimatedTime={10}
-                onStart={() => handleTaskStart('hal')}
-                priority={(() => {
-                  const tasks = assignedTasks.filter(t => t.questionnaire_id === 'hal')
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                  const latestTask = tasks[0];
-                  return latestTask?.priority || 'normal';
-                })() as 'normal' | 'urgent'}
-                dueDate={(() => {
-                  const tasks = assignedTasks.filter(t => t.questionnaire_id === 'hal')
-                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                  const latestTask = tasks[0];
-                  return latestTask?.due_date || undefined;
-                })()}
-              />
+          {/* Tab Navigation */}
+          <div className="bg-white rounded-xl shadow-sm mb-8">
+            <div className="border-b border-gray-200">
+              <nav className="flex space-x-8 px-6">
+                <button
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'tasks'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => setActiveTab('tasks')}
+                >
+                  {t('patient.dashboardPage.tasks')}
+                </button>
+                <button
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'history'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => setActiveTab('history')}
+                >
+                  {t('patient.dashboardPage.history')} ({questionnaireHistory.length})
+                </button>
+              </nav>
             </div>
+          </div>
 
-            {/* Historical Tasks - Show older tasks for reference */}
-            {(() => {
-              // Group tasks by questionnaire type and filter out the latest ones already shown
-              const halTasks = assignedTasks.filter(t => t.questionnaire_id === 'hal')
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-              const haemqolTasks = assignedTasks.filter(t => t.questionnaire_id === 'haemqol')
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-              
-              // Exclude the latest task for each type (already shown in main cards)
-              const historicalTasks = [
-                ...halTasks.slice(1), // Skip the first (latest) HAL task
-                ...haemqolTasks.slice(1) // Skip the first (latest) HAEMO-QoL-A task
-              ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          {/* Tab Content */}
+          {activeTab === 'tasks' && (
+            <>
+              {/* Task cards grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* HAEMO-QoL-A Task */}
+                <TaskCard
+                  title={t('questionnaire.haemqol.title')}
+                  description={(() => {
+                    const tasks = assignedTasks.filter(t => t.questionnaire_id === 'haemqol')
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    const latestTask = tasks[0];
+                    return latestTask?.instructions || t('questionnaire.haemqol.description');
+                  })()}
+                  status={taskStatuses.haemqol.status}
+                  progress={taskStatuses.haemqol.progress}
+                  estimatedTime={15}
+                  onStart={() => handleTaskStart('haemqol')}
+                  priority={(() => {
+                    const tasks = assignedTasks.filter(t => t.questionnaire_id === 'haemqol')
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    const latestTask = tasks[0];
+                    return latestTask?.priority || 'normal';
+                  })() as 'normal' | 'urgent'}
+                  dueDate={(() => {
+                    const tasks = assignedTasks.filter(t => t.questionnaire_id === 'haemqol')
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    const latestTask = tasks[0];
+                    return latestTask?.due_date || undefined;
+                  })()}
+                />
 
-              if (historicalTasks.length === 0) return null;
+                {/* HAL Task */}
+                <TaskCard
+                  title={t('questionnaire.hal.title')}
+                  description={(() => {
+                    const tasks = assignedTasks.filter(t => t.questionnaire_id === 'hal')
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    const latestTask = tasks[0];
+                    return latestTask?.instructions || t('questionnaire.hal.description');
+                  })()}
+                  status={taskStatuses.hal.status}
+                  progress={taskStatuses.hal.progress}
+                  estimatedTime={10}
+                  onStart={() => handleTaskStart('hal')}
+                  priority={(() => {
+                    const tasks = assignedTasks.filter(t => t.questionnaire_id === 'hal')
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    const latestTask = tasks[0];
+                    return latestTask?.priority || 'normal';
+                  })() as 'normal' | 'urgent'}
+                  dueDate={(() => {
+                    const tasks = assignedTasks.filter(t => t.questionnaire_id === 'hal')
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    const latestTask = tasks[0];
+                    return latestTask?.due_date || undefined;
+                  })()}
+                />
+              </div>
 
-              return (
-                <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    历史任务记录 ({historicalTasks.length} 个)
-                  </h3>
-                  <div className="space-y-4">
-                    {historicalTasks.map((task) => (
-                      <div key={task.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h4 className="font-medium text-gray-900">
-                              {task.questionnaire_id === 'haemqol' ? 'HAEMO-QoL-A' : 'HAL'} 问卷
-                            </h4>
-                            <p className="text-sm text-gray-600">{task.instructions || '医生分配的问卷任务'}</p>
-                          </div>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {task.status === 'completed' ? '已完成' :
-                             task.status === 'in_progress' ? '进行中' : '未开始'}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          分配日期: {new Date(task.created_at).toLocaleDateString('zh-CN')}
-                          {task.due_date && (
-                            <> • 截止日期: {new Date(task.due_date).toLocaleDateString('zh-CN')}</>
-                          )}
-                          {task.completed_at && (
-                            <> • 完成日期: {new Date(task.completed_at).toLocaleDateString('zh-CN')}</>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+              {/* Quick info cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Patient info summary */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patient.personalInfo')}</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">{t('patient.dashboardPage.nameLabel')}</span>
+                      <span className="font-medium">{dashboardData?.patient.name || currentUser?.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">{t('patient.dashboardPage.ageLabel')}</span>
+                      <span className="font-medium">{dashboardData?.patient.age || t('patient.dashboardPage.notFilled')} {dashboardData?.patient.age ? t('patient.dashboardPage.yearsOld') : ''}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">{t('patient.patientId')}:</span>
+                      <span className="font-medium">{dashboardData?.patient.id || currentUser?.id}</span>
+                    </div>
                   </div>
                 </div>
-              );
-            })()}
-          </>
-        )}
 
-        {activeTab === 'history' && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">问卷完成历史</h3>
-            {questionnaireHistory.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-gray-400 text-4xl mb-4">📋</div>
-                <p className="text-gray-500">暂无问卷历史记录</p>
-                <p className="text-sm text-gray-400 mt-2">完成问卷后，历史记录会显示在这里</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {questionnaireHistory.map((response, index) => (
-                  <div key={response.id} className="border rounded-lg p-6 hover:bg-gray-50">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-1">
-                          {response.questionnaire_type === 'haemqol' ? 'HAEMO-QoL-A 生存质量量表' : 'HAL 血友病活动列表'}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          第 {questionnaireHistory.filter(r => r.questionnaire_type === response.questionnaire_type).length - index} 次完成
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-semibold text-green-600">
-                          总分: {response.total_score}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(response.created_at).toLocaleDateString()} {new Date(response.created_at).toLocaleTimeString()}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Response details */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t">
-                      <div>
-                        <h5 className="font-medium text-gray-700 mb-2">评估结果</h5>
-                        <div className="text-sm text-gray-600">
-                          <p>完成时间: {new Date(response.created_at).toLocaleString()}</p>
-                          <p>问卷类型: {response.questionnaire_type === 'haemqol' ? 'HAEMO-QoL-A' : 'HAL'}</p>
-                          {response.questionnaire_type === 'haemqol' && (
-                            <p>生活质量评分: {response.total_score}/164 分</p>
-                          )}
-                          {response.questionnaire_type === 'hal' && (
-                            <p>活动限制评分: {response.total_score}/168 分</p>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <h5 className="font-medium text-gray-700 mb-2">答案概览</h5>
-                        <div className="text-sm text-gray-600 max-h-32 overflow-y-auto">
-                          {Object.entries(typeof response.answers === 'string' ? JSON.parse(response.answers) : response.answers).slice(0, 5).map(([key, value]) => (
-                            <div key={key} className="mb-1">
-                              <span className="font-medium">{key}:</span> {String(value)}
-                            </div>
-                          ))}
-                          {Object.keys(typeof response.answers === 'string' ? JSON.parse(response.answers) : response.answers).length > 5 && (
-                            <div className="text-gray-400 italic">
-                              还有 {Object.keys(typeof response.answers === 'string' ? JSON.parse(response.answers) : response.answers).length - 5} 个答案...
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Quick info cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Patient info summary */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">基本信息</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">姓名:</span>
-                <span className="font-medium">{dashboardData?.patient.name || currentUser?.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">年龄:</span>
-                <span className="font-medium">{dashboardData?.patient.age || '未填写'} {dashboardData?.patient.age ? '岁' : ''}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">患者ID:</span>
-                <span className="font-medium">{dashboardData?.patient.id || currentUser?.id}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Task progress summary */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">任务进度</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">待完成:</span>
-                <span className="font-medium text-orange-600">
-                  {totalTasks - completedTasks}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">已完成:</span>
-                <span className="font-medium text-green-600">
-                  {completedTasks}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">总计:</span>
-                <span className="font-medium">
-                  {totalTasks}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Medical info (limited view) */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">医疗信息</h3>
-            <div className="space-y-3">
-              {dashboardData?.medical_info?.evaluation_date ? (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">评估日期:</span>
-                    <span className="font-medium">
-                      {new Date(dashboardData.medical_info.evaluation_date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {dashboardData.medical_info.next_follow_up && (
+                {/* Task progress summary */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patient.dashboardPage.taskProgress')}</h3>
+                  <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">下次随访:</span>
-                      <span className="font-medium">
-                        {new Date(dashboardData.medical_info.next_follow_up).toLocaleDateString()}
+                      <span className="text-gray-600">{t('patient.pendingTasks')}:</span>
+                      <span className="font-medium text-orange-600">
+                        {totalTasks - completedTasks}
                       </span>
                     </div>
-                  )}
-                </>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">{t('patient.dashboardPage.completedLabel')}</span>
+                      <span className="font-medium text-green-600">
+                        {completedTasks}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">{t('patient.dashboardPage.totalTasks')}:</span>
+                      <span className="font-medium">
+                        {totalTasks}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Medical info (limited view) */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patient.medicalInfo')}</h3>
+                  <div className="space-y-3">
+                    {dashboardData?.medical_info?.evaluation_date ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">{t('patient.info.evaluationDate')}:</span>
+                          <span className="font-medium">
+                            {new Date(dashboardData.medical_info.evaluation_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {dashboardData.medical_info.next_follow_up && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">{t('patient.info.nextFollowUp')}:</span>
+                            <span className="font-medium">
+                              {new Date(dashboardData.medical_info.next_follow_up).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-gray-500 text-sm">{t('patient.info.medicalInfoEmpty')}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Help section */}
+              <div className="mt-8 bg-blue-50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-blue-900 mb-3">{t('patient.dashboardPage.helpTitle')}</h3>
+                <ul className="text-blue-800 text-sm space-y-2">
+                  <li>{t('patient.dashboardPage.helpPause')}</li>
+                  <li>{t('patient.dashboardPage.helpContact')}</li>
+                  <li>{t('patient.dashboardPage.helpMultiple')}</li>
+                </ul>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patient.assessmentHistory')}</h3>
+              {questionnaireHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-4xl mb-4">📋</div>
+                  <p className="text-gray-500">{t('patient.dashboardPage.noHistory')}</p>
+                  <p className="text-sm text-gray-400 mt-2">{t('patient.dashboardPage.noHistoryDescription')}</p>
+                </div>
               ) : (
-                <p className="text-gray-500 text-sm">医疗信息由医生填写</p>
+                <div className="space-y-6">
+                  {questionnaireHistory.map((response, index) => (
+                    <div key={response.id} className="border rounded-lg p-6 hover:bg-gray-50">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-1">
+                            {response.questionnaire_type === 'haemqol' ? t('questionnaire.haemqol.title') : t('questionnaire.hal.title')}
+                          </h4>
+                          <p className="text-sm text-gray-600">
+                            {t('patient.dashboardPage.completionNumber', { number: questionnaireHistory.filter(r => r.questionnaire_type === response.questionnaire_type).length - index })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-semibold text-green-600">
+                            {t('patient.dashboardPage.totalScore')}: {response.total_score}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {new Date(response.created_at).toLocaleDateString()} {new Date(response.created_at).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Response details */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t">
+                        <div>
+                          <h5 className="font-medium text-gray-700 mb-2">{t('results.title')}</h5>
+                          <div className="text-sm text-gray-600">
+                            <p>{t('results.completionDate')}: {new Date(response.created_at).toLocaleString()}</p>
+                            <p>{t('results.assessmentType')}: {response.questionnaire_type === 'haemqol' ? 'GAD-7 & PHQ-9' : 'HAL'}</p>
+                                                          {response.questionnaire_type === 'haemqol' && (
+                                <p>心理健康评分: {response.total_score}/48 分 (GAD-7: 0-21分, PHQ-9: 0-27分)</p>
+                            )}
+                            {response.questionnaire_type === 'hal' && (
+                              <p>{t('patient.dashboardPage.halScore')}: {response.total_score}/168 {t('patient.dashboardPage.points')}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-700 mb-2">{t('patient.dashboardPage.answersOverview')}</h5>
+                          <div className="text-sm text-gray-600 max-h-32 overflow-y-auto">
+                            {Object.entries(typeof response.answers === 'string' ? JSON.parse(response.answers) : response.answers).slice(0, 5).map(([key, value]) => (
+                              <div key={key} className="mb-1">
+                                <span className="font-medium">{key}:</span> {String(value)}
+                              </div>
+                            ))}
+                            {Object.keys(typeof response.answers === 'string' ? JSON.parse(response.answers) : response.answers).length > 5 && (
+                              <div className="text-gray-400 italic">
+                                {t('patient.dashboardPage.moreAnswers', { count: Object.keys(typeof response.answers === 'string' ? JSON.parse(response.answers) : response.answers).length - 5 })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Help section */}
-        <div className="mt-8 bg-blue-50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-3">使用说明</h3>
-          <ul className="text-blue-800 text-sm space-y-2">
-            <li>• 您可以随时暂停问卷填写，系统会自动保存您的进度</li>
-            <li>• 建议在安静的环境中填写问卷，确保答案的准确性</li>
-            <li>• 如有疑问，请联系您的主治医生</li>
-            <li>• 问卷结果将用于评估和改善您的治疗方案</li>
-          </ul>
+          )}
         </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 } 

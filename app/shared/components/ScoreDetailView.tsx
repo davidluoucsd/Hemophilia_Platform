@@ -48,7 +48,7 @@ const ScoreDetailView: React.FC<ScoreDetailViewProps> = ({ response }) => {
       <div className="flex justify-between items-start mb-4">
         <div>
           <h4 className="text-lg font-semibold text-gray-900">
-            {response.questionnaire_type === 'haemqol' ? 'HAEMO-QoL-A 生存质量量表' : 'HAL 血友病活动列表'}
+            {response.questionnaire_type === 'haemqol' ? 'GAD-7 & PHQ-9 心理健康筛查量表' : 'HAL 血友病活动列表'}
           </h4>
           <p className="text-sm text-gray-500">
             完成时间: {formatDate(response.completed_at || response.created_at)}
@@ -181,7 +181,11 @@ const ScoreDetailView: React.FC<ScoreDetailViewProps> = ({ response }) => {
         <h6 className="text-sm font-medium text-yellow-800 mb-2">分数解读</h6>
         <p className="text-sm text-yellow-700">
           {response.questionnaire_type === 'haemqol' ? (
-            <>分数越高表示生活质量越好。满分为 {analysis.maxScore} 分，当前得分 {analysis.totalScore} 分 ({((analysis.totalScore / analysis.maxScore) * 100).toFixed(1)}%)。</>
+            <>
+              这是心理健康筛查量表，分数越高表示症状越严重。满分为 {analysis.maxScore} 分，当前得分 {analysis.totalScore} 分。
+              GAD-7（焦虑）评分解读：0-4分轻微，5-9分轻度，10-14分中度，15-21分重度。
+              PHQ-9（抑郁）评分解读：0-4分无症状，5-9分轻度，10-14分中度，15-19分中重度，20-27分重度。
+            </>
           ) : (
             <>分数越低表示活动受限程度越轻。满分为 {analysis.maxScore} 分，当前得分 {analysis.totalScore} 分，表示活动受限程度为 {((analysis.totalScore / analysis.maxScore) * 100).toFixed(1)}%。</>
           )}

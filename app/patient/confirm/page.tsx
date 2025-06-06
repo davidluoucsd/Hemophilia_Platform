@@ -1,7 +1,7 @@
 /**
  * HAL问卷系统 - 确认页面
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -13,6 +13,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
+import { useTranslation } from '../../shared/hooks/useTranslation';
+import PageWrapper from '../../shared/components/PageWrapper';
 import ProgressIndicator from '../../shared/components/ProgressIndicator';
 import { formatDate } from '../../shared/utils/exportUtils';
 import { getQuestionTitle } from '../../shared/utils/questions';
@@ -21,6 +23,7 @@ import { HAEMQOL_SECTIONS, formatHaemqolAnswerText } from '../haemqol/questions'
 
 const ConfirmPage: React.FC = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const { 
     patientInfo, 
     answers, 
@@ -215,6 +218,7 @@ const ConfirmPage: React.FC = () => {
   }
   
   return (
+    <PageWrapper>
     <div className="min-h-screen flex flex-col items-center p-4 pb-16">
       <div className="w-full max-w-4xl">
         <ProgressIndicator 
@@ -224,12 +228,12 @@ const ConfirmPage: React.FC = () => {
         />
         
         <div className="mt-6 p-6 bg-white rounded-lg shadow-lg">
-          <h1 className="text-2xl font-bold text-center mb-6">确认信息</h1>
+          <h1 className="text-2xl font-bold text-center mb-6">{t('doctor.confirmInfo')}</h1>
           
           {/* 患者信息卡片 */}
           <div className="mb-8 bg-gray-50 rounded-lg p-5 shadow-sm">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-blue-700">患者基本信息</h2>
+              <h2 className="text-xl font-semibold text-blue-700">{t('doctor.patientBasicInfo')}</h2>
               <button 
                 onClick={handleEditPatientInfo}
                 className="px-3 py-1 text-sm bg-white border border-blue-500 text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
@@ -284,7 +288,7 @@ const ConfirmPage: React.FC = () => {
           {/* HAEMO-QoL-A问卷回答部分 - 调整到HAL前面 */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-5">
-              <h2 className="text-xl font-semibold text-blue-700">HAEMO-QoL-A问卷回答</h2>
+              <h2 className="text-xl font-semibold text-blue-700">GAD-7 & PHQ-9问卷回答</h2>
               <button 
                 onClick={handleEditHaemqolAnswers}
                 className="px-3 py-1 text-sm bg-white border border-blue-500 text-blue-600 rounded-full hover:bg-blue-50 transition-colors"
@@ -456,10 +460,11 @@ const ConfirmPage: React.FC = () => {
         </div>
         
         <footer className="mt-6 text-center text-sm text-gray-500">
-          <p>© 2024 罗骏哲（Junzhe Luo）. 版权所有.</p>
+                      <p>© 2025 罗骏哲（Junzhe Luo）. 版权所有.</p>
         </footer>
       </div>
     </div>
+    </PageWrapper>
   );
 };
 

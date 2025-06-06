@@ -1,7 +1,7 @@
 /**
  * Patient Detail Page - Comprehensive Patient Management
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -13,6 +13,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useHalStore } from '../../../shared/store';
+import { useTranslation } from '../../../shared/hooks/useTranslation';
+import PageWrapper from '../../../shared/components/PageWrapper';
 import { 
   getPatientInfo, 
   getMedicalInfo, 
@@ -31,6 +33,7 @@ const PatientDetailPage: React.FC = () => {
   const router = useRouter();
   const params = useParams();
   const patientId = params.id as string;
+  const { t } = useTranslation();
 
   const { currentUser, logout } = useHalStore();
 
@@ -309,6 +312,7 @@ const PatientDetailPage: React.FC = () => {
   }
 
   return (
+    <PageWrapper>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
@@ -324,7 +328,7 @@ const PatientDetailPage: React.FC = () => {
                 </svg>
               </button>
               <h1 className="text-xl font-semibold text-gray-900">
-                患者详情 - {patient.name}
+                {t('doctor.patientDetails')} - {patient.name}
               </h1>
             </div>
             <div className="flex items-center space-x-4">
@@ -332,7 +336,7 @@ const PatientDetailPage: React.FC = () => {
                 onClick={exportToCSV}
                 className="px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700"
               >
-                导出CSV
+{t('doctor.exportCSV')}
               </button>
               <span className="text-sm text-gray-700">{currentUser?.name}</span>
               <button
@@ -374,10 +378,10 @@ const PatientDetailPage: React.FC = () => {
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 px-6">
               {[
-                { id: 'basic', name: '基本信息', icon: '👤' },
-                { id: 'questionnaires', name: '问卷历史', icon: '📋' },
-                { id: 'tasks', name: '任务管理', icon: '✅' },
-                { id: 'medical', name: '医疗信息', icon: '🏥' }
+                { id: 'basic', name: t('doctor.basicInfo'), icon: '👤' },
+                { id: 'questionnaires', name: t('doctor.questionnaireHistory'), icon: '📋' },
+                { id: 'tasks', name: t('doctor.taskManagement'), icon: '✅' },
+                { id: 'medical', name: t('doctor.medicalInfo'), icon: '🏥' }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -442,13 +446,13 @@ const PatientDetailPage: React.FC = () => {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
-                      详细分析
+                      {t('doctor.detailedAnalysis')}
                     </button>
                     <button
                       onClick={() => setShowAssignModal(true)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
-                      分配新问卷
+                      {t('doctor.assignNewQuestionnaire')}
                     </button>
                   </div>
                 </div>
@@ -464,7 +468,7 @@ const PatientDetailPage: React.FC = () => {
                     <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <p className="text-gray-500">暂无问卷记录</p>
+                    <p className="text-gray-500">{t('doctor.noQuestionnaireRecords')}</p>
                   </div>
                 )}
               </div>
@@ -474,7 +478,7 @@ const PatientDetailPage: React.FC = () => {
             {activeTab === 'tasks' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium text-gray-900">任务管理</h3>
+                  <h3 className="text-lg font-medium text-gray-900">{t('doctor.taskManagement')}</h3>
                   <div className="flex space-x-3">
                     <button
                       onClick={reloadPatientData}
@@ -483,13 +487,13 @@ const PatientDetailPage: React.FC = () => {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
-                      刷新数据
+                      {t('doctor.refreshData')}
                     </button>
                     <button
                       onClick={() => setShowAssignModal(true)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
-                      分配新问卷
+                      {t('doctor.assignNewQuestionnaire')}
                     </button>
                   </div>
                 </div>
@@ -500,37 +504,37 @@ const PatientDetailPage: React.FC = () => {
                       <div key={task.id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-medium text-gray-900">
-                            {task.questionnaire_id === 'haemqol' ? 'HAEMO-QoL-A' : 'HAL'} 问卷
+                            {task.questionnaire_id === 'haemqol' ? 'GAD-7 & PHQ-9' : 'HAL'} {t('doctor.questionnaireSuffix')}
                           </h4>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTaskStatusColor(task.status)}`}>
-                            {task.status === 'completed' ? '已完成' :
-                             task.status === 'in_progress' ? '进行中' :
-                             task.status === 'not_started' ? '未开始' : '已过期'}
+                            {task.status === 'completed' ? t('doctor.statusCompleted') :
+                             task.status === 'in_progress' ? t('doctor.statusInProgress') :
+                             task.status === 'not_started' ? t('doctor.statusNotStarted') : t('doctor.statusExpired')}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-gray-500">创建时间：</span>
+                            <span className="text-gray-500">{t('doctor.createdTime')}：</span>
                             <span className="text-gray-900">{formatDate(task.created_at)}</span>
                           </div>
                           {task.due_date && (
                             <div>
-                              <span className="text-gray-500">截止时间：</span>
+                              <span className="text-gray-500">{t('doctor.dueTime')}：</span>
                               <span className="text-gray-900">{formatDate(task.due_date)}</span>
                             </div>
                           )}
                           <div>
-                            <span className="text-gray-500">进度：</span>
+                            <span className="text-gray-500">{t('doctor.progress')}：</span>
                             <span className="text-gray-900">{task.progress}%</span>
                           </div>
                           <div>
-                            <span className="text-gray-500">优先级：</span>
-                            <span className="text-gray-900">{task.priority === 'urgent' ? '紧急' : '普通'}</span>
+                            <span className="text-gray-500">{t('doctor.priority')}：</span>
+                            <span className="text-gray-900">{task.priority === 'urgent' ? t('doctor.priorityUrgent') : t('doctor.priorityNormal')}</span>
                           </div>
                         </div>
                         {task.instructions && (
                           <div className="mt-2">
-                            <span className="text-gray-500 text-sm">说明：</span>
+                            <span className="text-gray-500 text-sm">{t('doctor.instructions')}：</span>
                             <p className="text-gray-900 text-sm">{task.instructions}</p>
                           </div>
                         )}
@@ -542,7 +546,7 @@ const PatientDetailPage: React.FC = () => {
                     <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    <p className="text-gray-500">暂无分配的任务</p>
+                    <p className="text-gray-500">{t('doctor.noAssignedTasks')}</p>
                   </div>
                 )}
               </div>
@@ -551,24 +555,24 @@ const PatientDetailPage: React.FC = () => {
             {/* Medical Information Tab */}
             {activeTab === 'medical' && (
               <div className="space-y-6">
-                <h3 className="text-lg font-medium text-gray-900">医疗信息管理</h3>
+                <h3 className="text-lg font-medium text-gray-900">{t('doctor.medicalInfoManagement')}</h3>
                 
                 <form onSubmit={handleMedicalSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">每周治疗次数</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('doctor.weeklyTreatmentFrequency')}</label>
                       <input
                         type="number"
                         min="0"
                         value={medicalFormData.treatment_frequency}
                         onChange={(e) => setMedicalFormData({...medicalFormData, treatment_frequency: e.target.value})}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="次/周"
+                        placeholder={t('doctor.weeklyFrequencyPlaceholder')}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">治疗剂量 (IU/kg)</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('doctor.treatmentDoseUnit')}</label>
                       <input
                         type="number"
                         min="0"
@@ -576,12 +580,12 @@ const PatientDetailPage: React.FC = () => {
                         value={medicalFormData.treatment_dose}
                         onChange={(e) => setMedicalFormData({...medicalFormData, treatment_dose: e.target.value})}
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="IU/kg"
+                        placeholder={t('doctor.dosagePlaceholder')}
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">评估日期</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('doctor.evaluationDateLabel')}</label>
                       <input
                         type="date"
                         value={medicalFormData.evaluation_date}
@@ -591,7 +595,7 @@ const PatientDetailPage: React.FC = () => {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">下次随访日期</label>
+                      <label className="block text-sm font-medium text-gray-700">{t('doctor.nextFollowUpDate')}</label>
                       <input
                         type="date"
                         value={medicalFormData.next_follow_up}
@@ -602,35 +606,35 @@ const PatientDetailPage: React.FC = () => {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">诊断信息</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('doctor.diagnosisInfo')}</label>
                     <textarea
                       rows={3}
                       value={medicalFormData.diagnosis_info}
                       onChange={(e) => setMedicalFormData({...medicalFormData, diagnosis_info: e.target.value})}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="请输入诊断信息"
+                      placeholder={t('doctor.diagnosisPlaceholder')}
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">治疗方案</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('doctor.treatmentPlan')}</label>
                     <textarea
                       rows={3}
                       value={medicalFormData.treatment_plan}
                       onChange={(e) => setMedicalFormData({...medicalFormData, treatment_plan: e.target.value})}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="请输入治疗方案"
+                      placeholder={t('doctor.treatmentPlanPlaceholder')}
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">医生备注</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('doctor.doctorNotes')}</label>
                     <textarea
                       rows={3}
                       value={medicalFormData.notes}
                       onChange={(e) => setMedicalFormData({...medicalFormData, notes: e.target.value})}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="请输入备注信息"
+                      placeholder={t('doctor.notesPlaceholder')}
                     />
                   </div>
                   
@@ -640,7 +644,7 @@ const PatientDetailPage: React.FC = () => {
                       disabled={isSaving}
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                     >
-                      {isSaving ? '保存中...' : '保存医疗信息'}
+                      {isSaving ? t('doctor.saving') : t('doctor.saveMedicalInfo')}
                     </button>
                   </div>
                 </form>
@@ -655,22 +659,22 @@ const PatientDetailPage: React.FC = () => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">分配问卷</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('doctor.assignQuestionnaire')}</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">问卷类型</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctor.questionnaireType')}</label>
                   <select
                     value={assignmentData.questionnaireType}
                     onChange={(e) => setAssignmentData({...assignmentData, questionnaireType: e.target.value as 'haemqol' | 'hal'})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="haemqol">HAEMO-QoL-A 生活质量问卷</option>
-                    <option value="hal">HAL 活动限制问卷</option>
+                                              <option value="haemqol">{t('questionnaire.haemqol.title')}</option>
+                    <option value="hal">{t('questionnaire.hal.title')}</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">截止日期</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctor.dueDate')}</label>
                   <input
                     type="date"
                     value={assignmentData.due_date}
@@ -680,25 +684,25 @@ const PatientDetailPage: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">优先级</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctor.priority')}</label>
                   <select
                     value={assignmentData.priority}
                     onChange={(e) => setAssignmentData({...assignmentData, priority: e.target.value as 'normal' | 'urgent'})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="normal">普通</option>
-                    <option value="urgent">紧急</option>
+                    <option value="normal">{t('doctor.priorityNormal')}</option>
+                    <option value="urgent">{t('doctor.priorityUrgent')}</option>
                   </select>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">说明</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('doctor.instructions')}</label>
                   <textarea
                     rows={3}
                     value={assignmentData.instructions}
                     onChange={(e) => setAssignmentData({...assignmentData, instructions: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="请输入任务说明"
+                    placeholder={t('doctor.instructionsPlaceholder')}
                   />
                 </div>
               </div>
@@ -708,13 +712,13 @@ const PatientDetailPage: React.FC = () => {
                   onClick={() => setShowAssignModal(false)}
                   className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                 >
-                  取消
+                  {t('doctor.cancel')}
                 </button>
                 <button
                   onClick={handleAssignQuestionnaire}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
-                  分配问卷
+                  {t('doctor.assign')}
                 </button>
               </div>
             </div>
@@ -722,6 +726,7 @@ const PatientDetailPage: React.FC = () => {
         </div>
       )}
     </div>
+    </PageWrapper>
   );
 };
 

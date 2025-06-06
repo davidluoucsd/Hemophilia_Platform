@@ -1,7 +1,7 @@
 /**
  * 评估结果页面 - 增强版
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -10,7 +10,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHalStore } from '../../shared/store';
 import { QUESTION_SECTIONS } from '../../shared/utils/questions';
@@ -67,6 +67,8 @@ export default function ResultPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const isSavingRef = useRef(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
     const initializeData = async () => {
@@ -103,6 +105,15 @@ export default function ResultPage() {
       initializeData();
     }
   }, [currentUser]); // Simplified dependencies to prevent multiple runs
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   // Check if auto-save should happen
   const checkShouldAutoSave = async () => {
@@ -147,7 +158,7 @@ export default function ResultPage() {
           }
         }
         
-        // Check if we have HAEMO-QoL-A responses that match current answers
+        // Check if we have GAD-7 & PHQ-9 responses that match current answers
         if (haemqolAnswersCount > 0) {
           const existingHaemqolResponse = existingResponses.find(r => 
             r.questionnaire_type === 'haemqol' && 
@@ -155,7 +166,7 @@ export default function ResultPage() {
             Object.keys(r.answers).length >= haemqolAnswersCount - 5 // Allow some tolerance
           );
           if (existingHaemqolResponse) {
-            console.log('⏭️ HAEMO-QoL-A responses already exist in database, skipping auto-save');
+            console.log('⏭️ GAD-7 & PHQ-9 responses already exist in database, skipping auto-save');
             return false;
           }
         }
@@ -168,16 +179,23 @@ export default function ResultPage() {
     return true;
   };
 
-  // Save questionnaire results to database
-  const saveResultsToDatabase = async () => {
+  // Save questionnaire results to database with debouncing and prevention of duplicate calls
+  const saveResultsToDatabase = useCallback(async () => {
     console.log('🔍 saveResultsToDatabase called');
     console.log('🔍 currentUser:', currentUser);
+    
+    // Prevent duplicate calls
+    if (isSavingRef.current) {
+      console.log('⏭️ Save already in progress, skipping');
+      return;
+    }
     
     if (!currentUser) {
       console.log('❌ No currentUser, returning early');
       return;
     }
     
+    isSavingRef.current = true;
     setIsSaving(true);
     setSaveStatus('saving');
     
@@ -254,13 +272,13 @@ export default function ResultPage() {
         }
       }
       
-      // Save HAEMO-QoL-A results if any answers exist
-      console.log('🔍 Checking HAEMO-QoL-A answers:', Object.keys(haemqolAnswers).length);
+      // Save GAD-7 & PHQ-9 results if any answers exist
+      console.log('🔍 Checking GAD-7 & PHQ-9 answers:', Object.keys(haemqolAnswers).length);
       if (Object.keys(haemqolAnswers).length > 0) {
-        console.log('✅ HAEMO-QoL-A has answers, proceeding to save...');
+        console.log('✅ GAD-7 & PHQ-9 has answers, proceeding to save...');
         try {
           if (haemqolCompletion >= 80) {
-            console.log('📝 HAEMO-QoL-A questionnaire complete, getting or creating task...');
+            console.log('📝 GAD-7 & PHQ-9 questionnaire complete, getting or creating task...');
             const taskResult = await getOrCreatePatientTask(currentUser.id, 'haemqol', 'patient_self');
             
             if (taskResult.success && taskResult.data) {
@@ -272,10 +290,10 @@ export default function ResultPage() {
                 currentUser.id
               );
               
-              // Calculate HAEMO-QoL-A scores
+              // Calculate GAD-7 & PHQ-9 scores
               const haemqolScores = calculateHaemqolScores();
               
-              console.log('Submitting HAEMO-QoL-A response:', {
+              console.log('Submitting GAD-7 & PHQ-9 response:', {
                 taskId: taskResult.data.id,
                 scores: haemqolScores
               });
@@ -290,48 +308,68 @@ export default function ResultPage() {
               );
               
               if (submitResult.success) {
-                console.log('✅ HAEMO-QoL-A results saved successfully with independent task ID:', taskResult.data.id);
+                console.log('✅ GAD-7 & PHQ-9 results saved successfully with independent task ID:', taskResult.data.id);
                 saveSuccessful = true;
               } else {
-                console.error('Failed to save HAEMO-QoL-A results:', submitResult.error);
+                console.error('Failed to save GAD-7 & PHQ-9 results:', submitResult.error);
                 setSaveStatus('error');
               }
             } else {
-              console.error('Failed to get or create HAEMO-QoL-A task:', taskResult.error);
+              console.error('Failed to get or create GAD-7 & PHQ-9 task:', taskResult.error);
             }
           } else {
-            console.log('HAEMO-QoL-A questionnaire not complete enough to save (completion:', haemqolCompletion, '%)');
+            console.log('GAD-7 & PHQ-9 questionnaire not complete enough to save (completion:', haemqolCompletion, '%)');
           }
         } catch (error) {
-          console.error('Error saving HAEMO-QoL-A results:', error);
+          console.error('Error saving GAD-7 & PHQ-9 results:', error);
         }
       }
 
       if (saveSuccessful) {
         setSaveStatus('saved');
         console.log('✅ All questionnaire results saved successfully');
+        // Clear save status after 3 seconds
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        timeoutRef.current = setTimeout(() => {
+          setSaveStatus(null);
+        }, 3000);
       } else if (!saveSuccessful && (Object.keys(answers).length > 0 || Object.keys(haemqolAnswers).length > 0)) {
         // Only set error if we had data to save but failed
         setSaveStatus('error');
         console.log('❌ Failed to save some questionnaire results');
+        // Clear error status after 5 seconds
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        timeoutRef.current = setTimeout(() => {
+          setSaveStatus(null);
+        }, 5000);
       }
 
     } catch (error) {
       console.error('Error in saveResultsToDatabase:', error);
       setSaveStatus('error');
+      // Clear error status after 5 seconds
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        setSaveStatus(null);
+      }, 5000);
     } finally {
       setIsSaving(false);
+      isSavingRef.current = false;
     }
-  };
+  }, [currentUser, answers, haemqolAnswers, assessmentResult]);
   
-  // Calculate HAEMO-QoL-A scores
+  // Calculate GAD-7 & PHQ-9 scores
   const calculateHaemqolScores = () => {
-    // 按照医生端期望的维度计算分数
+    // GAD-7 & PHQ-9 维度计算分数
     const dimensions = {
-      physical_health: Array.from({length: 9}, (_, i) => `hq${i + 1}`),      // hq1-hq9
-      feelings_emotions: Array.from({length: 11}, (_, i) => `hq${i + 10}`),  // hq10-hq20
-      view_of_others: Array.from({length: 9}, (_, i) => `hq${i + 21}`),     // hq21-hq29
-      sports_school: Array.from({length: 12}, (_, i) => `hq${i + 30}`)      // hq30-hq41
+      gad7: Array.from({length: 7}, (_, i) => `hq${i + 1}`),      // hq1-hq7 (GAD-7)
+      phq9: Array.from({length: 9}, (_, i) => `hq${i + 8}`)       // hq8-hq16 (PHQ-9)
     };
 
     const domainScores: Record<string, any> = {};
@@ -342,22 +380,22 @@ export default function ResultPage() {
       let dimensionScore = 0;
       let dimensionAnswers = 0;
       
-             questions.forEach(q => {
-         const answer = haemqolAnswers[q as HaemqolQuestionId];
-         if (answer) {
-           const score = parseInt(answer);
-           if (!isNaN(score)) {
-             dimensionScore += score;
-             dimensionAnswers++;
-             answeredQuestions++;
-           }
-         }
-       });
+      questions.forEach(q => {
+        const answer = haemqolAnswers[q as HaemqolQuestionId];
+        if (answer) {
+          const score = parseInt(answer);
+          if (!isNaN(score)) {
+            dimensionScore += score;
+            dimensionAnswers++;
+            answeredQuestions++;
+          }
+        }
+      });
       
       domainScores[dimension] = {
         score: dimensionScore,
-        possible: dimensionAnswers * 5,  // 每题最高5分
-        percentage: dimensionAnswers > 0 ? Math.round((dimensionScore / (dimensionAnswers * 5)) * 100) : 0
+        possible: dimensionAnswers * 3,  // 每题最高3分
+        percentage: dimensionAnswers > 0 ? Math.round((dimensionScore / (dimensionAnswers * 3)) * 100) : 0
       };
       
       totalScore += dimensionScore;
@@ -366,8 +404,8 @@ export default function ResultPage() {
     return {
       domainScores,
       totalScore: totalScore,
-      total_possible: answeredQuestions * 5,
-      total_percentage: answeredQuestions > 0 ? Math.round((totalScore / (answeredQuestions * 5)) * 100) : 0
+      total_possible: answeredQuestions * 3,
+      total_percentage: answeredQuestions > 0 ? Math.round((totalScore / (answeredQuestions * 3)) * 100) : 0
     };
   };
   
@@ -502,37 +540,31 @@ export default function ResultPage() {
             调试
           </button>
 
-          {/* 保存状态指示器 */}
-          {saveStatus && (
-            <div className={`px-3 py-1 rounded-full text-sm flex items-center gap-2 ${
-              saveStatus === 'saved' ? 'bg-green-100 text-green-800' :
-              saveStatus === 'saving' ? 'bg-blue-100 text-blue-800' :
-              'bg-red-100 text-red-800'
-            }`}>
-              {saveStatus === 'saved' && (
-                <>
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  已保存
-                </>
-              )}
-              {saveStatus === 'saving' && (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  保存中...
-                </>
-              )}
-              {saveStatus === 'error' && (
-                <>
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  保存失败
-                </>
-              )}
-            </div>
-          )}
+          {/* 保存状态指示器 - 简化版本 */}
+          <div className="min-w-[100px] flex justify-center">
+            {saveStatus === 'saving' && (
+              <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                保存中...
+              </div>
+            )}
+            {saveStatus === 'saved' && (
+              <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                已保存
+              </div>
+            )}
+            {saveStatus === 'error' && (
+              <div className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                保存失败
+              </div>
+            )}
+          </div>
         </div>
       </div>
           
@@ -568,7 +600,7 @@ export default function ResultPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              HAEMO-QoL-A 详细回答 ({haemqolCompletionRate()}%)
+                                GAD-7 & PHQ-9 详细回答 ({haemqolCompletionRate()}%)
             </button>
           </nav>
         </div>
@@ -620,7 +652,7 @@ export default function ResultPage() {
               
               <div className="bg-green-50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-green-900">HAEMO-QoL-A 生存质量量表</h4>
+                  <h4 className="font-medium text-green-900">GAD-7 & PHQ-9 心理健康筛查量表</h4>
                   <span className="text-green-600 font-semibold">{haemqolCompletionRate()}%</span>
                 </div>
                 <div className="w-full bg-green-200 rounded-full h-2">
@@ -743,7 +775,7 @@ export default function ResultPage() {
               </div>
       )}
 
-      {/* HAEMO-QoL-A详细回答标签页 */}
+      {/* GAD-7 & PHQ-9详细回答标签页 */}
       {activeTab === 'haemqol-details' && (
         <div className="space-y-6">
           {HAEMQOL_SECTIONS.map((section, sectionIndex) => {
@@ -837,7 +869,7 @@ export default function ResultPage() {
                 </div>
                 
       <footer className="mt-10 text-center text-sm text-gray-500">
-        <p>© 2024 罗骏哲（Junzhe Luo）. 版权所有.</p>
+                    <p>© 2025 罗骏哲（Junzhe Luo）. 版权所有.</p>
         </footer>
     </div>
   );

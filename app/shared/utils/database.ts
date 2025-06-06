@@ -1,7 +1,7 @@
 /**
  * Enhanced Database Utilities with Permission Control
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -35,7 +35,7 @@ import {
 
 // Database configuration
 const DB_NAME = 'hal-questionnaire-v2';
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 
 // Storage keys for session data
 const STORAGE_KEYS = {
@@ -998,7 +998,7 @@ export async function getDoctorDashboardStats(doctorId: string): Promise<Databas
         const patient = allPatients.find(p => p.id === task.patient_id);
         return {
           patient_name: patient?.name || 'Unknown Patient',
-          questionnaire_name: task.questionnaire_id === 'haemqol' ? 'HAEMO-QoL-A' : 'HAL',
+          questionnaire_name: task.questionnaire_id === 'haemqol' ? 'GAD-7 & PHQ-9' : 'HAL',
           completed_at: task.completed_at!,
           score: undefined // Will be filled when we have response data
         };

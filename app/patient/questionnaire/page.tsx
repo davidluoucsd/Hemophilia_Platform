@@ -1,7 +1,7 @@
 /**
  * HAL问卷系统 - 问卷填写页
  * 
- * @copyright Copyright (c) 2024 罗骏哲（Junzhe Luo）
+ * @copyright Copyright (c) 2025 罗骏哲（Junzhe Luo）
  * @author 罗骏哲（Junzhe Luo）
  * 
  * 本软件的版权归罗骏哲所有。
@@ -28,11 +28,14 @@ import {
   saveTaskSpecificAnswers,
   getOrCreatePatientTask
 } from '../../shared/utils/database';
+import { useTranslation } from '../../shared/hooks/useTranslation';
+import PageWrapper from '../../shared/components/PageWrapper';
 
 export default function QuestionnairePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const taskId = searchParams.get('taskId');
+  const { t } = useTranslation();
   
   const { answers, setAnswer, loadData, setCurrentStep, currentUser, setAnswers } = useHalStore();
   const [isLoading, setIsLoading] = useState(true);
@@ -201,47 +204,42 @@ export default function QuestionnairePage() {
   const handleSectionClick = (index: number) => {
     setActiveSectionIndex(index);
     
-    // 滚动到选中的部分
-    const sectionRef = sectionRefs.current[`section-${index}`];
-    if (sectionRef) {
-      sectionRef.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // 滚动到指定部分
+    const targetSectionRef = sectionRefs.current[`section-${index}`];
+    if (targetSectionRef) {
+      targetSectionRef.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
-  
-  // 随机填充问卷 (测试功能)
+
+  // 随机填充问卷（测试功能）
   const handleRandomFill = () => {
-    const answerValues: AnswerValue[] = ['1', '2', '3', '4', '5', '6'];
-    
-    // 遍历所有section中的questions
-    QUESTION_SECTIONS.forEach(section => {
-      section.questions.forEach(question => {
-        const questionId = `q${question.id}` as QuestionId;
-        const randomAnswerIndex = Math.floor(Math.random() * answerValues.length);
-        const randomAnswer = answerValues[randomAnswerIndex];
-        setAnswer(questionId, randomAnswer);
-      });
+    const randomAnswers = generateRandomHalAnswers();
+    Object.entries(randomAnswers).forEach(([questionId, value]) => {
+      setAnswer(questionId, value);
     });
     
-    // 更新完成状态
+    // 更新已完成的部分
     setTimeout(() => {
       updateCompletedSections();
     }, 100);
   };
-  
-  // 设置当前活动的部分（通过滚动监测）
+
+  // 监听滚动事件，自动更新当前激活的部分
   useEffect(() => {
     const handleScroll = () => {
-      if (isMobileView) return; // 移动视图下不监听
+      if (isMobileView) return; // 移动设备不需要自动切换
       
-      // 找出当前在视图中的部分
-      for (let i = 0; i < QUESTION_SECTIONS.length; i++) {
-        const sectionRef = sectionRefs.current[`section-${i}`];
-        if (!sectionRef) continue;
-        
-        const rect = sectionRef.getBoundingClientRect();
-        // 如果部分顶部在视图顶部附近，认为是当前部分
-        if (rect.top <= 150 && rect.bottom >= 0) {
-          setActiveSectionIndex(i);
+      const sections = QUESTION_SECTIONS.map((_, index) => ({
+        index,
+        element: sectionRefs.current[`section-${index}`]
+      })).filter(s => s.element);
+      
+      const scrollPosition = window.scrollY + 200; // 偏移量
+      
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const section = sections[i];
+        if (section.element && section.element.offsetTop <= scrollPosition) {
+          setActiveSectionIndex(section.index);
           break;
         }
       }
@@ -256,229 +254,231 @@ export default function QuestionnairePage() {
       <div className="container mx-auto p-4 flex justify-center items-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4">加载中...</p>
+          <p className="mt-4">{t('common.loading')}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 pb-16">
-      <h1 className="page-title">血友病活动列表（HAL）问卷</h1>
+    <PageWrapper>
+      <div className="container mx-auto px-4 pb-16">
+        <h1 className="page-title">{t('questionnaire.hal.title')}</h1>
 
-      {/* 导航按钮 */}
-      <div className="flex justify-between mb-6">
-        <button 
-          onClick={handleBack}
-          className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          返回任务中心
-        </button>
-        
-        <div className="flex gap-3">
+        {/* 导航按钮 */}
+        <div className="flex justify-between mb-6">
           <button 
-            onClick={handleRandomFill}
-            className="px-4 py-2 border border-orange-300 text-orange-600 rounded-md hover:bg-orange-50 flex items-center gap-2 shadow-sm transition-all"
+            onClick={handleBack}
+            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 shadow-sm transition-all"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
             </svg>
-            随机填充 (测试)
-        </button>
-        
-        <button 
-          onClick={handleSubmit}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-all"
-        >
-          继续
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </button>
+            {t('questionnaire.backToTaskCenter')}
+          </button>
+          
+          <div className="flex gap-3">
+            <button 
+              onClick={handleRandomFill}
+              className="px-4 py-2 border border-orange-300 text-orange-600 rounded-md hover:bg-orange-50 flex items-center gap-2 shadow-sm transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              {t('questionnaire.randomFill')}
+          </button>
+          
+          <button 
+            onClick={handleSubmit}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-all"
+          >
+            {t('questionnaire.continue')}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+          </div>
         </div>
-      </div>
 
-      {/* 验证提示 */}
-      {showValidation && unansweredQuestions.length > 0 && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 animate-fade-in">
-          <p className="font-medium">请回答所有问题后继续</p>
-          <p className="text-sm">未回答的问题已高亮显示</p>
-          <p className="text-sm mt-1">共有 {unansweredQuestions.length} 个问题未回答</p>
-        </div>
-      )}
+        {/* 验证提示 */}
+        {showValidation && unansweredQuestions.length > 0 && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 animate-fade-in">
+            <p className="font-medium">{t('questionnaire.answerAllQuestions')}</p>
+            <p className="text-sm">{t('questionnaire.unansweredHighlighted')}</p>
+            <p className="text-sm mt-1">{t('questionnaire.unansweredCount', { count: unansweredQuestions.length })}</p>
+          </div>
+        )}
 
-      {/* 问卷布局：分为侧边导航和内容区 */}
-      <div className={`form-section flex ${isMobileView ? 'flex-col' : 'flex-row'}`}>
-        {/* 部分导航栏 - 较大屏幕显示在左侧，移动设备显示在顶部 */}
-        <div className={`
-          sections-nav 
-          ${isMobileView 
-            ? 'w-full mb-6 overflow-x-auto flex flex-row pb-2' 
-            : 'w-64 mr-6 sticky top-4 self-start max-h-[calc(100vh-120px)] overflow-y-auto'}
-        `}>
-          <div className={`${isMobileView ? 'flex w-max' : 'space-y-2'}`}>
-            {QUESTION_SECTIONS.map((section, index) => (
-              <div 
-                key={`nav-section-${index}`}
-                className={`
-                  section-nav-item cursor-pointer p-3 rounded-lg
-                  ${isMobileView ? 'mr-2 min-w-max' : ''}
-                  ${activeSectionIndex === index 
-                    ? 'bg-blue-100 text-blue-700 font-medium' 
-                    : 'hover:bg-gray-100'}
-                  ${completedSections[index] 
-                    ? 'border-l-4 border-green-500 pl-2' 
-                    : 'border-l-4 border-transparent pl-2'}
-                  transition-all
-                `}
-                onClick={() => handleSectionClick(index)}
-              >
-                <div className="flex items-center">
-                  {completedSections[index] ? (
-                    <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <span className="h-5 w-5 flex items-center justify-center bg-gray-200 text-gray-700 rounded-full mr-2 text-xs">
-                      {index + 1}
-                    </span>
-                  )}
-                  <span className="text-sm">{section.title}</span>
+        {/* 问卷布局：分为侧边导航和内容区 */}
+        <div className={`form-section flex ${isMobileView ? 'flex-col' : 'flex-row'}`}>
+          {/* 部分导航栏 - 较大屏幕显示在左侧，移动设备显示在顶部 */}
+          <div className={`
+            sections-nav 
+            ${isMobileView 
+              ? 'w-full mb-6 overflow-x-auto flex flex-row pb-2' 
+              : 'w-64 mr-6 sticky top-4 self-start max-h-[calc(100vh-120px)] overflow-y-auto'}
+          `}>
+            <div className={`${isMobileView ? 'flex w-max' : 'space-y-2'}`}>
+              {QUESTION_SECTIONS.map((section, index) => (
+                <div 
+                  key={`nav-section-${index}`}
+                  className={`
+                    section-nav-item cursor-pointer p-3 rounded-lg
+                    ${isMobileView ? 'mr-2 min-w-max' : ''}
+                    ${activeSectionIndex === index 
+                      ? 'bg-blue-100 text-blue-700 font-medium' 
+                      : 'hover:bg-gray-100'}
+                    ${completedSections[index] 
+                      ? 'border-l-4 border-green-500 pl-2' 
+                      : 'border-l-4 border-transparent pl-2'}
+                    transition-all
+                  `}
+                  onClick={() => handleSectionClick(index)}
+                >
+                  <div className="flex items-center">
+                    {completedSections[index] ? (
+                      <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <span className="h-5 w-5 flex items-center justify-center bg-gray-200 text-gray-700 rounded-full mr-2 text-xs">
+                        {index + 1}
+                      </span>
+                    )}
+                    <span className="text-sm">{section.title}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* 完成度指示器 - 在侧边栏底部显示 */}
+            {!isMobileView && (
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <div className="text-sm text-gray-700">{t('questionnaire.completionRate')}</div>
+                <div className="flex items-center mt-2">
+                  <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full"
+                      style={{ 
+                        width: `${Object.values(completedSections).filter(Boolean).length / QUESTION_SECTIONS.length * 100}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <span className="ml-2 text-sm text-blue-600 font-medium">
+                    {Object.values(completedSections).filter(Boolean).length}/{QUESTION_SECTIONS.length}
+                  </span>
                 </div>
               </div>
-            ))}
+            )}
           </div>
           
-          {/* 完成度指示器 - 在侧边栏底部显示 */}
-          {!isMobileView && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <div className="text-sm text-gray-700">问卷完成度</div>
-              <div className="flex items-center mt-2">
-                <div className="flex-1 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full"
-                    style={{ 
-                      width: `${Object.values(completedSections).filter(Boolean).length / QUESTION_SECTIONS.length * 100}%` 
-                    }}
-                  ></div>
-                </div>
-                <span className="ml-2 text-sm text-blue-600 font-medium">
-                  {Object.values(completedSections).filter(Boolean).length}/{QUESTION_SECTIONS.length}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {/* 问卷内容区域 */}
-        <div className="flex-1">
-          <form id="halForm" className="space-y-12">
-            {QUESTION_SECTIONS.map((section, sectionIndex) => (
-              <div 
-                key={`section-${sectionIndex}`} 
-                className={`section-content pb-8 ${sectionIndex !== activeSectionIndex && isMobileView ? 'hidden' : ''}`}
-                ref={(el) => {
-                  sectionRefs.current[`section-${sectionIndex}`] = el;
-                }}
-              >
-                <div className="sticky top-0 z-10 bg-white py-4 border-b border-gray-200 mb-6">
-                  <h2 className="text-xl font-semibold text-blue-700 flex items-center">
-                    <span className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-800 rounded-full mr-3 text-sm font-bold">
-                      {sectionIndex + 1}
-                    </span>
-                    {section.title}
-                  </h2>
-                  {section.description && (
-                    <p className="text-sm text-gray-600 mt-2 ml-11">{section.description}</p>
-                  )}
-                </div>
+          {/* 问卷内容区域 */}
+          <div className="flex-1">
+            <form id="halForm" className="space-y-12">
+              {QUESTION_SECTIONS.map((section, sectionIndex) => (
+                <div 
+                  key={`section-${sectionIndex}`} 
+                  className={`section-content pb-8 ${sectionIndex !== activeSectionIndex && isMobileView ? 'hidden' : ''}`}
+                  ref={(el) => {
+                    sectionRefs.current[`section-${sectionIndex}`] = el;
+                  }}
+                >
+                  <div className="sticky top-0 z-10 bg-white py-4 border-b border-gray-200 mb-6">
+                    <h2 className="text-xl font-semibold text-blue-700 flex items-center">
+                      <span className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-800 rounded-full mr-3 text-sm font-bold">
+                        {sectionIndex + 1}
+                      </span>
+                      {section.title}
+                    </h2>
+                    {section.description && (
+                      <p className="text-sm text-gray-600 mt-2 ml-11">{section.description}</p>
+                    )}
+                  </div>
 
-                <div className="landscape-optimize">
-                  {section.questions.map((question) => {
-                    const questionId = `q${question.id}` as QuestionId;
-                    const isUnanswered = showValidation && unansweredQuestions.includes(question.id);
-                    
-                    return (
-                      <div
-                        key={questionId}
-                        className="mb-6 animate-slide-up"
-                        style={{ animationDelay: `${(question.id % 10) * 50}ms` }}
-                        ref={(el) => {
-                          questionRefs.current[`question-${question.id}`] = el;
-                        }}
-                      >
-                        <Question
-                          id={questionId}
-                          number={question.id}
-                          title={question.title}
-                          value={answers[questionId] || ''}
-                          onChange={handleAnswerChange}
-                          highlight={isUnanswered}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                {/* 每个部分底部的导航按钮 */}
-                <div className="flex justify-between mt-8 pt-4 border-t border-gray-200">
-                  <button 
-                    type="button"
-                    onClick={handlePrevSection}
-                    className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                    </svg>
-                    {sectionIndex === 0 ? '返回任务中心' : '上一部分'}
-                  </button>
+                  <div className="landscape-optimize">
+                    {section.questions.map((question) => {
+                      const questionId = `q${question.id}` as QuestionId;
+                      const isUnanswered = showValidation && unansweredQuestions.includes(question.id);
+                      
+                      return (
+                        <div
+                          key={questionId}
+                          className="mb-6 animate-slide-up"
+                          style={{ animationDelay: `${(question.id % 10) * 50}ms` }}
+                          ref={(el) => {
+                            questionRefs.current[`question-${question.id}`] = el;
+                          }}
+                        >
+                          <Question
+                            id={questionId}
+                            number={question.id}
+                            title={question.title}
+                            value={answers[questionId] || ''}
+                            onChange={handleAnswerChange}
+                            highlight={isUnanswered}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                   
-                  <button 
-                    type="button"
-                    onClick={handleNextSection}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-                  >
-                    {sectionIndex === QUESTION_SECTIONS.length - 1 ? '完成问卷' : '下一部分'}
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                  {/* 每个部分底部的导航按钮 */}
+                  <div className="flex justify-between mt-8 pt-4 border-t border-gray-200">
+                    <button 
+                      type="button"
+                      onClick={handlePrevSection}
+                      className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                      </svg>
+                      {sectionIndex === 0 ? t('questionnaire.backToTaskCenter') : t('questionnaire.previousSection')}
+                    </button>
+                    
+                    <button 
+                      type="button"
+                      onClick={handleNextSection}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      {sectionIndex === QUESTION_SECTIONS.length - 1 ? t('questionnaire.completeQuestionnaire') : t('questionnaire.nextSection')}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </form>
+              ))}
+            </form>
+          </div>
         </div>
-      </div>
-      
-      {/* 底部导航按钮 */}
-      <div className="flex justify-between mt-8 no-print">
-        <button 
-          onClick={handleBack}
-          className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 shadow-sm"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          返回任务中心
-        </button>
         
-        <button 
-          onClick={handleSubmit}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm"
-        >
-          继续
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </button>
-      </div>
+        {/* 底部导航按钮 */}
+        <div className="flex justify-between mt-8 no-print">
+          <button 
+            onClick={handleBack}
+            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 shadow-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            {t('questionnaire.backToTaskCenter')}
+          </button>
+          
+          <button 
+            onClick={handleSubmit}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 shadow-sm"
+          >
+            {t('questionnaire.continue')}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
 
-      <footer className="mt-10 text-center text-sm text-gray-500">
-        <p>© 2024 罗骏哲（Junzhe Luo）. 版权所有.</p>
-      </footer>
-    </div>
+        <footer className="mt-10 text-center text-sm text-gray-500">
+          <p>{t('app.copyright')}</p>
+        </footer>
+      </div>
+    </PageWrapper>
   );
 }
